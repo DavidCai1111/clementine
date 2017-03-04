@@ -1,0 +1,10 @@
+[package]
+name = "clementine"
+version = "0.0.0"
+authors = ["DavidCai <davidcai1993@yahoo.com>"]
+readme = "README.md"
+repository = "https://github.com/DavidCai1993/clementine"
+license = "MIT"
+
+[dependencies]
+rustc-serialize = "0.3"

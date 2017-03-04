@@ -6,6 +6,9 @@ pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum ErrorKind {
+    // Database errors.
+    DataBaseClosed,
+    // Transaction errors.
     TransactionNotWritable,
     ItemNotFound,
 }
@@ -16,8 +19,13 @@ pub struct Error {
 }
 
 impl Error {
+    pub fn new(kind: ErrorKind) -> Error {
+        Error { kind: kind }
+    }
+
     pub fn message(&self) -> &str {
         match self.kind {
+            ErrorKind::DataBaseClosed => "database already closed",
             ErrorKind::TransactionNotWritable => "transaction is not writable",
             ErrorKind::ItemNotFound => "item not found",
         }
