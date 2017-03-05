@@ -1,35 +1,37 @@
 use std::collections::BTreeMap;
-use std::sync::RwLock;
 use std::cmp::Ord;
-use error::{Error, ErrorKind, Result};
+use std::sync::{RwLock, Arc};
+
 use transaction::Transaction;
+use error::{Error, ErrorKind, Result};
 
 #[derive(Debug)]
 pub struct Database<K, V>
     where K: Ord
 {
-    store: BTreeMap<K, V>,
+    store: Arc<BTreeMap<K, V>>,
+    txn_mut: RwLock<Transaction<K, V>>,
     closed: bool,
-    txn_mut: RwLock<Transaction>,
 }
 
-impl<'a, K, V> Database<K, V>
+impl<K, V> Database<K, V>
     where K: Ord
 {
     pub fn new() -> Result<Database<K, V>> {
+        let store = Arc::new(BTreeMap::new());
         Ok(Database {
-            store: BTreeMap::new(),
+            store: store.clone(),
+            txn_mut: RwLock::new(Transaction { store: store.clone() }),
             closed: false,
-            txn_mut: RwLock::new(Transaction {}),
         })
     }
 
     pub fn read() -> Result<()> {
-        Ok(())
+        unimplemented!()
     }
 
     pub fn update() -> Result<()> {
-        Ok(())
+        unimplemented!()
     }
 
     pub fn close(&self) -> Result<()> {
