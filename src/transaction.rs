@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use std::cmp::Ord;
 use std::sync::Arc;
-
 use error::Result;
 
 pub trait ReadTransaction<K, V>

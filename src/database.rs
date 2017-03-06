@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use std::cmp::Ord;
 use std::sync::{RwLock, Arc};
-
 use transaction::Transaction;
 use error::{Error, ErrorKind, Result};
 
@@ -74,6 +73,9 @@ mod tests {
     #[test]
     fn test_read() {
         let db = &Database::<String, String>::new().unwrap();
-        assert!(db.read(|txn| -> Result<()> { Ok(()) }).is_ok())
+        assert!(db.read(|txn| -> Result<()> {
+            txn.get()
+            Ok(())
+        }).is_ok())
     }
 }
