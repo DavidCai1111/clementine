@@ -60,10 +60,10 @@ impl<K, V> WriteTransaction<K, V> for Transaction<K, V>
     where K: Ord
 {
     fn update(&mut self, key: K, value: V) -> Result<Option<V>> {
-      Ok(Arc::get_mut(&mut self.store).unwrap().insert(key, value))
+        Ok(Arc::get_mut(&mut self.store).unwrap().insert(key, value))
     }
 
     fn remove(&mut self, key: K) -> Result<Option<V>> {
-      Ok(Arc::get_mut(&mut self.store).unwrap().remove(&key))
+        Ok(Arc::get_mut(&mut self.store).unwrap().remove(&key))
     }
 }

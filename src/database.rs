@@ -26,18 +26,54 @@ impl<K, V> Database<K, V>
         })
     }
 
-    pub fn read() -> Result<()> {
-        unimplemented!()
+    pub fn read<F>(&self, f: F) -> Result<()>
+        where F: Fn(&Transaction<K, V>) -> Result<()>
+    {
+        match self.txn_mut.read() {
+            Ok(store) => f(&store),
+            Err(_) => unreachable!(),
+        }
     }
 
-    pub fn update() -> Result<()> {
-        unimplemented!()
+    pub fn update<F>(&self, f: F) -> Result<()>
+        where F: Fn(&Transaction<K, V>) -> Result<()>
+    {
+        match self.txn_mut.write() {
+            Ok(store) => f(&store),
+            Err(_) => unreachable!(),
+        }
     }
 
-    pub fn close(&self) -> Result<()> {
+    pub fn close(&mut self) -> Result<()> {
         if self.closed {
             return Err(Error::new(ErrorKind::DataBaseClosed));
         }
+        self.closed = true;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new() {
+        let db = Database::<String, String>::new().unwrap();
+        assert_eq!(false, db.closed);
+    }
+
+    #[test]
+    fn test_close() {
+        let db = &mut Database::<String, String>::new().unwrap();
+        assert!(db.close().is_ok());
+        assert!(db.close().is_err());
+        assert!(db.close().is_err());
+    }
+
+    #[test]
+    fn test_read() {
+        let db = &Database::<String, String>::new().unwrap();
+        assert!(db.read(|txn| -> Result<()> { Ok(()) }).is_ok())
     }
 }
