@@ -1,20 +1,22 @@
 use std::collections::BTreeMap;
 use std::cmp::Ord;
 use std::sync::Arc;
+
 use error::Result;
 
 pub trait ReadTransaction<K, V>
     where K: Ord
 {
-    fn get(&self, key: K) -> Result<V>;
+    fn get(&self, key: K) -> Option<&V>;
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool;
 }
 
 pub trait WriteTransaction<K, V>
     where K: Ord
 {
-    fn update(&self, key: K, value: V) -> Result<V>;
-    fn remove(&self, key: K) -> Result<V>;
+    fn update(&mut self, key: K, value: V) -> Result<Option<V>>;
+    fn remove(&mut self, key: K) -> Result<Option<V>>;
 }
 
 #[derive(Debug)]
@@ -41,23 +43,27 @@ impl<K, V> Transaction<K, V>
 impl<K, V> ReadTransaction<K, V> for Transaction<K, V>
     where K: Ord
 {
-    fn get(&self, key: K) -> Result<V> {
-        unimplemented!()
+    fn get(&self, key: K) -> Option<&V> {
+        self.store.get(&key)
     }
 
     fn len(&self) -> usize {
         self.store.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.store.is_empty()
     }
 }
 
 impl<K, V> WriteTransaction<K, V> for Transaction<K, V>
     where K: Ord
 {
-    fn update(&self, key: K, value: V) -> Result<V> {
-        unimplemented!()
+    fn update(&mut self, key: K, value: V) -> Result<Option<V>> {
+      Ok(Arc::get_mut(&mut self.store).unwrap().insert(key, value))
     }
 
-    fn remove(&self, key: K) -> Result<V> {
-        unimplemented!()
+    fn remove(&mut self, key: K) -> Result<Option<V>> {
+      Ok(Arc::get_mut(&mut self.store).unwrap().remove(&key))
     }
 }
