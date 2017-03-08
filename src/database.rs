@@ -26,7 +26,7 @@ impl<K, V> Database<K, V>
     }
 
     pub fn read<F>(&self, f: F) -> Result<()>
-        where F: Fn(&Transaction<K, V>) -> Result<()>
+        where F: Fn(&ReadTransaction<K, V>) -> Result<()>
     {
         match self.txn_mut.read() {
             Ok(store) => f(&*store),
@@ -35,7 +35,7 @@ impl<K, V> Database<K, V>
     }
 
     pub fn update<F>(&self, f: F) -> Result<()>
-        where F: Fn(&Transaction<K, V>) -> Result<()>
+        where F: Fn(&WriteTransaction<K, V>) -> Result<()>
     {
         match self.txn_mut.write() {
             Ok(store) => f(&*store),
@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn test_read() {
         let db = &Database::<&str, &str>::new().unwrap();
-        assert!(db.read(&|txn: &Transaction<&str, &str>| -> Result<()> {
+        assert!(db.read(|txn| -> Result<()> {
                 assert!(txn.get("not exist").is_none());
                 Ok(())
             })

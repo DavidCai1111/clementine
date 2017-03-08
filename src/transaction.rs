@@ -11,7 +11,7 @@ pub trait ReadTransaction<K, V>
     fn is_empty(&self) -> bool;
 }
 
-pub trait WriteTransaction<K, V>
+pub trait WriteTransaction<K, V>: ReadTransaction<K, V>
     where K: Ord
 {
     fn update(&mut self, key: K, value: V) -> Result<Option<V>>;
