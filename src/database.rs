@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::cmp::Ord;
 use std::sync::{RwLock, Arc};
-use transaction::Transaction;
+use transaction::{Transaction, ReadTransaction, WriteTransaction};
 use error::{Error, ErrorKind, Result};
 
 #[derive(Debug)]
@@ -29,7 +29,7 @@ impl<K, V> Database<K, V>
         where F: Fn(&Transaction<K, V>) -> Result<()>
     {
         match self.txn_mut.read() {
-            Ok(store) => f(&store),
+            Ok(store) => f(&*store),
             Err(_) => unreachable!(),
         }
     }
@@ -38,7 +38,7 @@ impl<K, V> Database<K, V>
         where F: Fn(&Transaction<K, V>) -> Result<()>
     {
         match self.txn_mut.write() {
-            Ok(store) => f(&store),
+            Ok(store) => f(&*store),
             Err(_) => unreachable!(),
         }
     }
@@ -72,10 +72,11 @@ mod tests {
 
     #[test]
     fn test_read() {
-        let db = &Database::<String, String>::new().unwrap();
-        assert!(db.read(|txn| -> Result<()> {
-            txn.get()
-            Ok(())
-        }).is_ok())
+        let db = &Database::<&str, &str>::new().unwrap();
+        assert!(db.read(&|txn: &Transaction<&str, &str>| -> Result<()> {
+                assert!(txn.get("not exist").is_none());
+                Ok(())
+            })
+            .is_ok())
     }
 }
