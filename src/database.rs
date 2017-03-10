@@ -8,7 +8,6 @@ use error::{Error, ErrorKind, Result};
 pub struct Database<K, V>
     where K: Ord
 {
-    store: Arc<BTreeMap<K, V>>,
     txn_mut: RwLock<Transaction<K, V>>,
     closed: bool,
 }
@@ -17,10 +16,8 @@ impl<K, V> Database<K, V>
     where K: Ord
 {
     pub fn new() -> Result<Database<K, V>> {
-        let store = Arc::new(BTreeMap::new());
         Ok(Database {
-            store: store.clone(),
-            txn_mut: RwLock::new(Transaction { store: store.clone() }),
+            txn_mut: RwLock::new(Transaction { store: Arc::new(BTreeMap::new()) }),
             closed: false,
         })
     }
@@ -35,10 +32,10 @@ impl<K, V> Database<K, V>
     }
 
     pub fn update<F>(&self, f: F) -> Result<()>
-        where F: Fn(&WriteTransaction<K, V>) -> Result<()>
+        where F: Fn(&mut WriteTransaction<K, V>) -> Result<()>
     {
         match self.txn_mut.write() {
-            Ok(store) => f(&*store),
+            Ok(mut store) => f(&mut *store),
             Err(_) => unreachable!(),
         }
     }
@@ -71,12 +68,23 @@ mod tests {
     }
 
     #[test]
-    fn test_read() {
+    fn test_read_empty() {
         let db = &Database::<&str, &str>::new().unwrap();
         assert!(db.read(|txn| -> Result<()> {
                 assert!(txn.get("not exist").is_none());
                 Ok(())
             })
             .is_ok())
+    }
+
+    #[test]
+    fn test_update() {
+        let db = &Database::<&str, &str>::new().unwrap();
+        assert!(db.update(|txn| -> Result<()> {
+                assert_eq!(true, txn.update("k1", "v1").unwrap().is_none());
+                assert_eq!("v1", *txn.get("k1").unwrap());
+                Ok(())
+            })
+            .is_ok());
     }
 }
