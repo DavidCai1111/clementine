@@ -17,7 +17,7 @@ impl<K, V> Database<K, V>
 {
     pub fn new() -> Result<Database<K, V>> {
         Ok(Database {
-            txn_mut: RwLock::new(Transaction { store: Arc::new(BTreeMap::new()) }),
+            txn_mut: RwLock::new(Transaction::new(Box::new(BTreeMap::new()))),
             closed: false,
         })
     }

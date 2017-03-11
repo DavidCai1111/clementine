@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::cmp::Ord;
-use std::sync::Arc;
 use error::Result;
 
 pub trait ReadTransaction<K, V>
@@ -20,13 +19,13 @@ pub trait WriteTransaction<K, V>: ReadTransaction<K, V>
 
 #[derive(Debug)]
 pub struct Transaction<K: Ord, V> {
-    pub store: Arc<BTreeMap<K, V>>,
+    pub store: Box<BTreeMap<K, V>>,
 }
 
 impl<K, V> Transaction<K, V>
     where K: Ord
 {
-    pub fn new(store: Arc<BTreeMap<K, V>>) -> Transaction<K, V> {
+    pub fn new(store: Box<BTreeMap<K, V>>) -> Transaction<K, V> {
         Transaction { store: store }
     }
 
@@ -59,16 +58,10 @@ impl<K, V> WriteTransaction<K, V> for Transaction<K, V>
     where K: Ord
 {
     fn update(&mut self, key: K, value: V) -> Result<Option<V>> {
-        match Arc::get_mut(&mut self.store) {
-            Some(ref mut store) => Ok(store.insert(key, value)),
-            None => unreachable!(),
-        }
+        Ok(self.store.as_mut().insert(key, value))
     }
 
     fn remove(&mut self, key: K) -> Result<Option<V>> {
-        match Arc::get_mut(&mut self.store) {
-            Some(ref mut store) => Ok(store.remove(&key)),
-            None => unreachable!(),
-        }
+        Ok(self.store.as_mut().remove(&key))
     }
 }
