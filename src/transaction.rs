@@ -15,6 +15,7 @@ pub trait WriteTransaction<K, V>: ReadTransaction<K, V>
 {
     fn update(&mut self, key: K, value: V) -> Result<Option<V>>;
     fn remove(&mut self, key: K) -> Result<Option<V>>;
+    fn remove_all(&mut self) -> Result<()>;
 }
 
 #[derive(Debug)]
@@ -63,5 +64,9 @@ impl<K, V> WriteTransaction<K, V> for Transaction<K, V>
 
     fn remove(&mut self, key: K) -> Result<Option<V>> {
         Ok(self.store.as_mut().remove(&key))
+    }
+
+    fn remove_all(&mut self) -> Result<()> {
+        Ok(self.store.as_mut().clear())
     }
 }

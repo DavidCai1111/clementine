@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::cmp::Ord;
-use std::sync::{RwLock, Arc};
+use std::sync::RwLock;
 use transaction::{Transaction, ReadTransaction, WriteTransaction};
 use error::{Error, ErrorKind, Result};
 
@@ -83,6 +83,34 @@ mod tests {
         assert!(db.update(|txn| -> Result<()> {
                 assert_eq!(true, txn.update("k1", "v1").unwrap().is_none());
                 assert_eq!("v1", *txn.get("k1").unwrap());
+                Ok(())
+            })
+            .is_ok());
+    }
+
+    #[test]
+    fn test_remove() {
+        let db = &Database::<&str, &str>::new().unwrap();
+        assert!(db.update(|txn| -> Result<()> {
+                assert_eq!(true, txn.update("k1", "v1").unwrap().is_none());
+                assert_eq!("v1", *txn.get("k1").unwrap());
+                assert_eq!(true, txn.remove("k1").unwrap().is_some());
+                assert_eq!(true, txn.get("k1").is_none());
+                Ok(())
+            })
+            .is_ok());
+    }
+
+    #[test]
+    fn test_remove_all() {
+        let db = &Database::<&str, &str>::new().unwrap();
+        assert!(db.update(|txn| -> Result<()> {
+                assert_eq!(true, txn.update("k1", "v1").unwrap().is_none());
+                assert_eq!(true, txn.update("k2", "v2").unwrap().is_none());
+                assert_eq!(true, txn.update("k3", "v3").unwrap().is_none());
+                assert_eq!(3, txn.len());
+                assert_eq!(true, txn.remove_all().is_ok());
+                assert_eq!(0, txn.len());
                 Ok(())
             })
             .is_ok());
