@@ -26,7 +26,12 @@ impl<K, V> Database<K, V>
         where F: Fn(&ReadTransaction<K, V>) -> Result<()>
     {
         match self.txn_mut.read() {
-            Ok(store) => f(&*store),
+            Ok(store) => {
+                if self.closed {
+                    return Err(Error::new(ErrorKind::DataBaseClosed));
+                }
+                f(&*store)
+            }
             Err(_) => unreachable!(),
         }
     }
@@ -35,7 +40,16 @@ impl<K, V> Database<K, V>
         where F: Fn(&mut WriteTransaction<K, V>) -> Result<()>
     {
         match self.txn_mut.write() {
-            Ok(mut store) => f(&mut *store),
+            Ok(mut store) => {
+                if self.closed {
+                    return Err(Error::new(ErrorKind::DataBaseClosed));
+                }
+                // check the result and then commit or rollback
+                if f(&mut *store).is_err() {
+                    return store.rollback();
+                }
+                Ok(())
+            }
             Err(_) => unreachable!(),
         }
     }
@@ -44,7 +58,11 @@ impl<K, V> Database<K, V>
         if self.closed {
             return Err(Error::new(ErrorKind::DataBaseClosed));
         }
-        self.closed = true;
+
+        match self.txn_mut.write() {
+            Ok(_) => self.closed = true,
+            Err(_) => unreachable!(),
+        }
         Ok(())
     }
 }
@@ -81,7 +99,7 @@ mod tests {
     fn test_update() {
         let db = &Database::<&str, &str>::new().unwrap();
         assert!(db.update(|txn| -> Result<()> {
-                assert_eq!(true, txn.update("k1", "v1").unwrap().is_none());
+                assert_eq!(true, txn.update("k1", "v1").is_none());
                 assert_eq!("v1", *txn.get("k1").unwrap());
                 Ok(())
             })
@@ -92,9 +110,9 @@ mod tests {
     fn test_remove() {
         let db = &Database::<&str, &str>::new().unwrap();
         assert!(db.update(|txn| -> Result<()> {
-                assert_eq!(true, txn.update("k1", "v1").unwrap().is_none());
+                assert_eq!(true, txn.update("k1", "v1").is_none());
                 assert_eq!("v1", *txn.get("k1").unwrap());
-                assert_eq!(true, txn.remove("k1").unwrap().is_some());
+                assert_eq!(true, txn.remove("k1").is_some());
                 assert_eq!(true, txn.get("k1").is_none());
                 Ok(())
             })
@@ -105,12 +123,13 @@ mod tests {
     fn test_remove_all() {
         let db = &Database::<&str, &str>::new().unwrap();
         assert!(db.update(|txn| -> Result<()> {
-                assert_eq!(true, txn.update("k1", "v1").unwrap().is_none());
-                assert_eq!(true, txn.update("k2", "v2").unwrap().is_none());
-                assert_eq!(true, txn.update("k3", "v3").unwrap().is_none());
+                assert_eq!(true, txn.update("k1", "v1").is_none());
+                assert_eq!(true, txn.update("k2", "v2").is_none());
+                assert_eq!(true, txn.update("k3", "v3").is_none());
                 assert_eq!(3, txn.len());
-                assert_eq!(true, txn.remove_all().is_ok());
+                txn.remove_all();
                 assert_eq!(0, txn.len());
+                assert_eq!(true, txn.is_empty());
                 Ok(())
             })
             .is_ok());
