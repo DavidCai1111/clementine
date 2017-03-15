@@ -20,7 +20,7 @@ pub trait WriteTransaction<K, V>: ReadTransaction<K, V>
     where K: Ord
 {
     fn update(&mut self, key: K, value: V) -> Option<V>;
-    fn remove(&mut self, key: K) -> Option<V>;
+    fn remove(&mut self, key: &K) -> Option<V>;
     fn remove_all(&mut self);
 }
 
@@ -28,7 +28,7 @@ pub trait WriteTransaction<K, V>: ReadTransaction<K, V>
 pub struct Transaction<K: Ord, V> {
     pub store: Box<BTreeMap<K, V>>,
 
-    rollback_items: Box<Vec<Item<K, V>>>,
+    rollback_items: Vec<Item<K, V>>,
 }
 
 impl<K, V> Transaction<K, V>
@@ -37,7 +37,7 @@ impl<K, V> Transaction<K, V>
     pub fn new(store: Box<BTreeMap<K, V>>) -> Transaction<K, V> {
         Transaction {
             store: store,
-            rollback_items: Box::new(Vec::new()),
+            rollback_items: Vec::new(),
         }
     }
 
@@ -46,8 +46,8 @@ impl<K, V> Transaction<K, V>
     }
 
     pub fn rollback(&mut self) -> Result<()> {
-        for item in self.rollback_items.into_iter() {
-            self.remove(item.key);
+        for item in &self.rollback_items {
+            self.store.remove(&item.key);
         }
 
         Ok(())
@@ -77,8 +77,8 @@ impl<K, V> WriteTransaction<K, V> for Transaction<K, V>
         self.store.insert(key, value)
     }
 
-    fn remove(&mut self, key: K) -> Option<V> {
-        self.store.remove(&key)
+    fn remove(&mut self, key: &K) -> Option<V> {
+        self.store.remove(key)
     }
 
     fn remove_all(&mut self) {

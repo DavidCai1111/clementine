@@ -44,7 +44,6 @@ impl<K, V> Database<K, V>
                 if self.closed {
                     return Err(Error::new(ErrorKind::DataBaseClosed));
                 }
-                // check the result and then commit or rollback
                 if f(&mut *store).is_err() {
                     return store.rollback();
                 }
@@ -112,7 +111,7 @@ mod tests {
         assert!(db.update(|txn| -> Result<()> {
                 assert_eq!(true, txn.update("k1", "v1").is_none());
                 assert_eq!("v1", *txn.get("k1").unwrap());
-                assert_eq!(true, txn.remove("k1").is_some());
+                assert_eq!(true, txn.remove(&"k1").is_some());
                 assert_eq!(true, txn.get("k1").is_none());
                 Ok(())
             })
