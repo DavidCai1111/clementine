@@ -3,7 +3,7 @@ use std::cmp::Ord;
 use error::Result;
 
 #[derive(Debug, Clone, Copy)]
-struct Item<K: Ord, V> {
+struct Item<K: Ord + Copy, V: Copy> {
     key: K,
     value: V,
 }
@@ -25,14 +25,15 @@ pub trait WriteTransaction<K, V>: ReadTransaction<K, V>
 }
 
 #[derive(Debug)]
-pub struct Transaction<K: Ord, V> {
+pub struct Transaction<K: Ord + Copy, V: Copy> {
     pub store: Box<BTreeMap<K, V>>,
 
-    rollback_items: Vec<Item<K, V>>,
+    rollback_items: Vec<Box<Item<K, V>>>,
 }
 
 impl<K, V> Transaction<K, V>
-    where K: Ord
+    where K: Ord + Copy,
+          V: Copy
 {
     pub fn new(store: Box<BTreeMap<K, V>>) -> Transaction<K, V> {
         Transaction {
@@ -47,7 +48,7 @@ impl<K, V> Transaction<K, V>
 
     pub fn rollback(&mut self) -> Result<()> {
         for item in &self.rollback_items {
-            self.store.remove(&item.key);
+            self.store.insert(item.key, item.value);
         }
 
         Ok(())
@@ -55,7 +56,8 @@ impl<K, V> Transaction<K, V>
 }
 
 impl<K, V> ReadTransaction<K, V> for Transaction<K, V>
-    where K: Ord
+    where K: Ord + Copy,
+          V: Copy
 {
     fn get(&self, key: K) -> Option<&V> {
         self.store.get(&key)
@@ -71,7 +73,8 @@ impl<K, V> ReadTransaction<K, V> for Transaction<K, V>
 }
 
 impl<K, V> WriteTransaction<K, V> for Transaction<K, V>
-    where K: Ord
+    where K: Ord + Copy,
+          V: Copy
 {
     fn update(&mut self, key: K, value: V) -> Option<V> {
         self.store.insert(key, value)

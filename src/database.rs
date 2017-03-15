@@ -6,14 +6,16 @@ use error::{Error, ErrorKind, Result};
 
 #[derive(Debug)]
 pub struct Database<K, V>
-    where K: Ord
+    where K: Ord + Copy,
+          V: Copy
 {
     txn_mut: RwLock<Transaction<K, V>>,
     closed: bool,
 }
 
 impl<K, V> Database<K, V>
-    where K: Ord
+    where K: Ord + Copy,
+          V: Copy
 {
     pub fn new() -> Result<Database<K, V>> {
         Ok(Database {
@@ -72,13 +74,13 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let db = Database::<String, String>::new().unwrap();
+        let db = Database::<i32, i32>::new().unwrap();
         assert_eq!(false, db.closed);
     }
 
     #[test]
     fn test_close() {
-        let db = &mut Database::<String, String>::new().unwrap();
+        let db = &mut Database::<i32, i32>::new().unwrap();
         assert!(db.close().is_ok());
         assert!(db.close().is_err());
         assert!(db.close().is_err());
@@ -86,9 +88,9 @@ mod tests {
 
     #[test]
     fn test_read_empty() {
-        let db = &Database::<&str, &str>::new().unwrap();
+        let db = &Database::<i32, i32>::new().unwrap();
         assert!(db.read(|txn| -> Result<()> {
-                assert!(txn.get("not exist").is_none());
+                assert!(txn.get(0).is_none());
                 Ok(())
             })
             .is_ok())
@@ -96,10 +98,10 @@ mod tests {
 
     #[test]
     fn test_update() {
-        let db = &Database::<&str, &str>::new().unwrap();
+        let db = &Database::<i32, i32>::new().unwrap();
         assert!(db.update(|txn| -> Result<()> {
-                assert_eq!(true, txn.update("k1", "v1").is_none());
-                assert_eq!("v1", *txn.get("k1").unwrap());
+                assert_eq!(true, txn.update(0, 1).is_none());
+                assert_eq!(1, *txn.get(0).unwrap());
                 Ok(())
             })
             .is_ok());
@@ -107,12 +109,12 @@ mod tests {
 
     #[test]
     fn test_remove() {
-        let db = &Database::<&str, &str>::new().unwrap();
+        let db = &Database::<i32, i32>::new().unwrap();
         assert!(db.update(|txn| -> Result<()> {
-                assert_eq!(true, txn.update("k1", "v1").is_none());
-                assert_eq!("v1", *txn.get("k1").unwrap());
-                assert_eq!(true, txn.remove(&"k1").is_some());
-                assert_eq!(true, txn.get("k1").is_none());
+                assert_eq!(true, txn.update(0, 1).is_none());
+                assert_eq!(1, *txn.get(0).unwrap());
+                assert_eq!(true, txn.remove(&0).is_some());
+                assert_eq!(true, txn.get(0).is_none());
                 Ok(())
             })
             .is_ok());
@@ -120,11 +122,11 @@ mod tests {
 
     #[test]
     fn test_remove_all() {
-        let db = &Database::<&str, &str>::new().unwrap();
+        let db = &Database::<i32, i32>::new().unwrap();
         assert!(db.update(|txn| -> Result<()> {
-                assert_eq!(true, txn.update("k1", "v1").is_none());
-                assert_eq!(true, txn.update("k2", "v2").is_none());
-                assert_eq!(true, txn.update("k3", "v3").is_none());
+                assert_eq!(true, txn.update(0, 1).is_none());
+                assert_eq!(true, txn.update(1, 2).is_none());
+                assert_eq!(true, txn.update(2, 3).is_none());
                 assert_eq!(3, txn.len());
                 txn.remove_all();
                 assert_eq!(0, txn.len());
