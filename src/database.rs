@@ -68,6 +68,17 @@ impl<K, V> Database<K, V>
     }
 }
 
+impl<K, V> Drop for Database<K, V>
+    where K: Ord + Copy,
+          V: Copy
+{
+    fn drop(&mut self) {
+        if !self.closed {
+            self.close().unwrap();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
