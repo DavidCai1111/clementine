@@ -1,25 +1,35 @@
 use std::convert::From;
 
-pub trait DataKind: From<String> {
+pub trait Serializable: From<String> {
     fn to_string(&self) -> Option<String>;
 }
 
 #[derive(Debug)]
-pub enum DataKinds {
-    String(String),
+pub enum Data<S>
+    where S: Into<String>
+{
+    String(S),
     Int(i64),
     Uint(u64),
     Float(f64),
 }
 
-impl From<String> for DataKinds {
-    fn from(s: String) -> Self {
+impl<S> From<String> for Data<S>
+    where S: Into<String>
+{
+    fn from(_: String) -> Self {
         unimplemented!()
     }
 }
 
-impl DataKind for DataKinds {
+impl<S> Serializable for Data<S>
+    where S: Into<String>
+{
     fn to_string(&self) -> Option<String> {
-        unimplemented!()
+        match *self {
+            // Data::String(s) => Some(s.into()),
+            Data::Int(i) => Some(format!("{}", i)),
+            _ => None,
+        }
     }
 }

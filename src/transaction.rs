@@ -2,32 +2,32 @@ use std::collections::BTreeMap;
 use error::Result;
 
 #[derive(Debug)]
-struct Item {
-    key: String,
-    value: String,
+struct Item<S: Into<String> + Ord + Clone> {
+    key: S,
+    value: S,
 }
 
-pub trait ReadTransaction {
-    fn get(&self, key: String) -> Option<&str>;
+pub trait ReadTransaction<S: Into<String> + Ord + Clone> {
+    fn get(&self, key: S) -> Option<&S>;
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool;
 }
 
-pub trait WriteTransaction: ReadTransaction {
-    fn update(&mut self, key: String, value: String) -> Option<String>;
-    fn remove(&mut self, key: &str) -> Option<String>;
+pub trait WriteTransaction<S: Into<String> + Ord + Clone>: ReadTransaction<S> {
+    fn update(&mut self, key: S, value: S) -> Option<S>;
+    fn remove(&mut self, key: &S) -> Option<S>;
     fn remove_all(&mut self);
 }
 
 #[derive(Debug)]
-pub struct Transaction {
-    pub store: Box<BTreeMap<String, String>>,
+pub struct Transaction<S: Into<String> + Ord + Clone> {
+    pub store: Box<BTreeMap<S, S>>,
 
-    rollback_items: Vec<Box<Item>>,
+    rollback_items: Vec<Item<S>>,
 }
 
-impl Transaction {
-    pub fn new(store: Box<BTreeMap<String, String>>) -> Transaction {
+impl<S: Into<String> + Ord + Clone> Transaction<S> {
+    pub fn new(store: Box<BTreeMap<S, S>>) -> Transaction<S> {
         Transaction {
             store: store,
             rollback_items: Vec::new(),
@@ -39,16 +39,20 @@ impl Transaction {
     }
 
     pub fn rollback(&mut self) -> Result<()> {
-        // for item in &self.rollback_items {
-        //     self.store.insert(item.key, item.value);
-        // }
+        for item in &self.rollback_items {
+            Self::update_item(&mut self.store, item);
+        }
 
         Ok(())
     }
+
+    fn update_item(store: &mut BTreeMap<S, S>, item: &Item<S>) {
+        store.insert(item.key.clone(), item.value.clone());
+    }
 }
 
-impl ReadTransaction for Transaction {
-    fn get(&self, key: String) -> Option<&str> {
+impl<S: Into<String> + Ord + Clone> ReadTransaction<S> for Transaction<S> {
+    fn get(&self, key: S) -> Option<&S> {
         match self.store.get(&key) {
             Some(value) => Some(&*value),
             None => None,
@@ -64,12 +68,12 @@ impl ReadTransaction for Transaction {
     }
 }
 
-impl WriteTransaction for Transaction {
-    fn update(&mut self, key: String, value: String) -> Option<String> {
+impl<S: Into<String> + Ord + Clone> WriteTransaction<S> for Transaction<S> {
+    fn update(&mut self, key: S, value: S) -> Option<S> {
         self.store.insert(key, value)
     }
 
-    fn remove(&mut self, key: &str) -> Option<String> {
+    fn remove(&mut self, key: &S) -> Option<S> {
         self.store.remove(key)
     }
 
