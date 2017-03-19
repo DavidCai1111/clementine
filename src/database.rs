@@ -16,7 +16,7 @@ impl<S> Database<S>
 {
     pub fn new() -> Result<Database<S>> {
         Ok(Database {
-            txn_mut: RwLock::new(Transaction::new(Box::new(BTreeMap::new()))),
+            txn_mut: RwLock::new(Transaction::new(BTreeMap::new())),
             closed: false,
         })
     }
@@ -45,8 +45,9 @@ impl<S> Database<S>
                 }
 
                 if f(&mut *store).is_err() {
-                    return store.rollback();
+                    store.rollback();
                 }
+                store.commit();
                 Ok(())
             }
             Err(_) => unreachable!(),
@@ -126,6 +127,11 @@ mod tests {
                 Ok(())
             })
             .is_ok());
+        assert!(db.read(|txn| -> Result<()> {
+                assert_eq!(true, txn.get("1").is_none());
+                Ok(())
+            })
+            .is_ok());
     }
 
     #[test]
@@ -139,6 +145,73 @@ mod tests {
                 txn.remove_all();
                 assert_eq!(0, txn.len());
                 assert_eq!(true, txn.is_empty());
+                Ok(())
+            })
+            .is_ok());
+    }
+
+    #[test]
+    fn test_rollback_update() {
+        let db = &Database::new().unwrap();
+        assert!(db.update(|txn| -> Result<()> {
+                txn.update("1", "1");
+                Ok(())
+            })
+            .is_ok());
+        assert!(db.update(|txn| -> Result<()> {
+                txn.update("1", "2");
+                Err(Error::new(ErrorKind::DataBaseClosed))
+            })
+            .is_ok());
+        assert!(db.read(|txn| -> Result<()> {
+                assert_eq!("1", *txn.get("1").unwrap());
+                Ok(())
+            })
+            .is_ok());
+    }
+
+    #[test]
+    fn test_rollback_remove() {
+        let db = &Database::new().unwrap();
+        assert!(db.update(|txn| -> Result<()> {
+                txn.update("1", "1");
+                Ok(())
+            })
+            .is_ok());
+        assert!(db.read(|txn| -> Result<()> {
+                assert_eq!("1", *txn.get("1").unwrap());
+                Ok(())
+            })
+            .is_ok());
+        assert!(db.update(|txn| -> Result<()> {
+                txn.remove(&"1");
+                Err(Error::new(ErrorKind::DataBaseClosed))
+            })
+            .is_ok());
+        assert!(db.read(|txn| -> Result<()> {
+                assert_eq!("1", *txn.get("1").unwrap());
+                Ok(())
+            })
+            .is_ok());
+    }
+
+    #[test]
+    fn test_rollback_remove_all() {
+        let db = &Database::new().unwrap();
+        assert!(db.update(|txn| -> Result<()> {
+                txn.update("1", "1");
+                txn.update("2", "2");
+                Ok(())
+            })
+            .is_ok());
+        assert!(db.update(|txn| -> Result<()> {
+                txn.remove_all();
+                Err(Error::new(ErrorKind::DataBaseClosed))
+            })
+            .is_ok());
+        assert!(db.read(|txn| -> Result<()> {
+                assert_eq!("1", *txn.get("1").unwrap());
+                assert_eq!("2", *txn.get("2").unwrap());
                 Ok(())
             })
             .is_ok());
