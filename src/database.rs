@@ -4,12 +4,16 @@ use transaction::{Transaction, ReadTransaction, WriteTransaction};
 use error::{Error, ErrorKind, Result};
 
 #[derive(Debug)]
-pub struct Database<S: Into<String> + Ord + Clone> {
+pub struct Database<S>
+    where S: Into<String> + Ord + Clone
+{
     txn_mut: RwLock<Transaction<S>>,
     closed: bool,
 }
 
-impl<S: Into<String> + Ord + Clone> Database<S> {
+impl<S> Database<S>
+    where S: Into<String> + Ord + Clone
+{
     pub fn new() -> Result<Database<S>> {
         Ok(Database {
             txn_mut: RwLock::new(Transaction::new(Box::new(BTreeMap::new()))),
@@ -62,7 +66,9 @@ impl<S: Into<String> + Ord + Clone> Database<S> {
     }
 }
 
-impl<S: Into<String> + Ord + Clone> Drop for Database<S> {
+impl<S> Drop for Database<S>
+    where S: Into<String> + Ord + Clone
+{
     fn drop(&mut self) {
         if !self.closed {
             self.close().unwrap();

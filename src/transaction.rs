@@ -2,31 +2,41 @@ use std::collections::BTreeMap;
 use error::Result;
 
 #[derive(Debug)]
-struct Item<S: Into<String> + Ord + Clone> {
+struct Item<S>
+    where S: Into<String> + Ord + Clone
+{
     key: S,
     value: S,
 }
 
-pub trait ReadTransaction<S: Into<String> + Ord + Clone> {
+pub trait ReadTransaction<S>
+    where S: Into<String> + Ord + Clone
+{
     fn get(&self, key: S) -> Option<&S>;
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool;
 }
 
-pub trait WriteTransaction<S: Into<String> + Ord + Clone>: ReadTransaction<S> {
+pub trait WriteTransaction<S>: ReadTransaction<S>
+    where S: Into<String> + Ord + Clone
+{
     fn update(&mut self, key: S, value: S) -> Option<S>;
     fn remove(&mut self, key: &S) -> Option<S>;
     fn remove_all(&mut self);
 }
 
 #[derive(Debug)]
-pub struct Transaction<S: Into<String> + Ord + Clone> {
+pub struct Transaction<S>
+    where S: Into<String> + Ord + Clone
+{
     pub store: Box<BTreeMap<S, S>>,
 
     rollback_items: Vec<Item<S>>,
 }
 
-impl<S: Into<String> + Ord + Clone> Transaction<S> {
+impl<S> Transaction<S>
+    where S: Into<String> + Ord + Clone
+{
     pub fn new(store: Box<BTreeMap<S, S>>) -> Transaction<S> {
         Transaction {
             store: store,
@@ -51,7 +61,9 @@ impl<S: Into<String> + Ord + Clone> Transaction<S> {
     }
 }
 
-impl<S: Into<String> + Ord + Clone> ReadTransaction<S> for Transaction<S> {
+impl<S> ReadTransaction<S> for Transaction<S>
+    where S: Into<String> + Ord + Clone
+{
     fn get(&self, key: S) -> Option<&S> {
         match self.store.get(&key) {
             Some(value) => Some(&*value),
@@ -68,7 +80,9 @@ impl<S: Into<String> + Ord + Clone> ReadTransaction<S> for Transaction<S> {
     }
 }
 
-impl<S: Into<String> + Ord + Clone> WriteTransaction<S> for Transaction<S> {
+impl<S> WriteTransaction<S> for Transaction<S>
+    where S: Into<String> + Ord + Clone
+{
     fn update(&mut self, key: S, value: S) -> Option<S> {
         self.store.insert(key, value)
     }
