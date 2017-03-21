@@ -46,6 +46,7 @@ impl<S> Transaction<S>
 
     pub fn commit(&mut self) {
         self.rollback_items.clear();
+        self.backup_store = None;
     }
 
     pub fn rollback(&mut self) {

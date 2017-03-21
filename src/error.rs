@@ -11,6 +11,8 @@ pub enum ErrorKind {
     // Transaction errors.
     TransactionNotWritable,
     ItemNotFound,
+    // Data errors.
+    InvalidSerializedString,
 }
 
 #[derive(Debug)]
@@ -28,6 +30,7 @@ impl Error {
             ErrorKind::DataBaseClosed => "database already closed",
             ErrorKind::TransactionNotWritable => "transaction is not writable",
             ErrorKind::ItemNotFound => "item not found",
+            ErrorKind::InvalidSerializedString => "invalid serialized string",
         }
     }
 }
