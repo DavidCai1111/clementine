@@ -1,5 +1,5 @@
-use error::{Result, Error, ErrorKind};
 use std::time::SystemTime;
+use error::{Result, Error, ErrorKind};
 
 static CRLF: &'static str = "\r\n";
 static STRING_PREFIX: &'static str = "+";
