@@ -84,6 +84,7 @@ impl<K, V> Drop for Database<K, V>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use data::Data;
 
     #[test]
     fn test_new() {
