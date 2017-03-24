@@ -1,42 +1,48 @@
 use std::collections::BTreeMap;
+use data::Serializable;
 
 #[derive(Debug)]
-struct Item<S>
-    where S: Into<String> + Ord + Clone
+struct Item<K, V>
+    where K: Into<String> + Ord + Clone,
+          V: Serializable
 {
-    key: S,
-    value: Option<S>,
+    key: K,
+    value: Option<V>,
 }
 
-pub trait ReadTransaction<S>
-    where S: Into<String> + Ord + Clone
+pub trait ReadTransaction<K, V>
+    where K: Into<String> + Ord + Clone,
+          V: Serializable
 {
-    fn get(&self, key: S) -> Option<&S>;
+    fn get(&self, key: K) -> Option<&V>;
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool;
 }
 
-pub trait WriteTransaction<S>: ReadTransaction<S>
-    where S: Into<String> + Ord + Clone
+pub trait WriteTransaction<K, V>: ReadTransaction<K, V>
+    where K: Into<String> + Ord + Clone,
+          V: Serializable
 {
-    fn update(&mut self, key: S, value: S) -> Option<S>;
-    fn remove(&mut self, key: &S) -> Option<S>;
+    fn update(&mut self, key: K, value: V) -> Option<V>;
+    fn remove(&mut self, key: &K) -> Option<V>;
     fn remove_all(&mut self);
 }
 
 #[derive(Debug)]
-pub struct Transaction<S>
-    where S: Into<String> + Ord + Clone
+pub struct Transaction<K, V>
+    where K: Into<String> + Ord + Clone,
+          V: Serializable
 {
-    store: BTreeMap<S, S>,
-    backup_store: Option<BTreeMap<S, S>>,
-    rollback_items: Vec<Item<S>>,
+    store: BTreeMap<K, V>,
+    backup_store: Option<BTreeMap<K, V>>,
+    rollback_items: Vec<Item<K, V>>,
 }
 
-impl<S> Transaction<S>
-    where S: Into<String> + Ord + Clone
+impl<K, V> Transaction<K, V>
+    where K: Into<String> + Ord + Clone,
+          V: Serializable
 {
-    pub fn new(store: BTreeMap<S, S>) -> Transaction<S> {
+    pub fn new(store: BTreeMap<K, V>) -> Transaction<K, V> {
         Transaction {
             store: store,
             backup_store: None,
@@ -65,10 +71,11 @@ impl<S> Transaction<S>
     }
 }
 
-impl<S> ReadTransaction<S> for Transaction<S>
-    where S: Into<String> + Ord + Clone
+impl<K, V> ReadTransaction<K, V> for Transaction<K, V>
+    where K: Into<String> + Ord + Clone,
+          V: Serializable
 {
-    fn get(&self, key: S) -> Option<&S> {
+    fn get(&self, key: K) -> Option<&V> {
         match self.store.get(&key) {
             Some(value) => Some(&*value),
             None => None,
@@ -84,10 +91,11 @@ impl<S> ReadTransaction<S> for Transaction<S>
     }
 }
 
-impl<S> WriteTransaction<S> for Transaction<S>
-    where S: Into<String> + Ord + Clone
+impl<K, V> WriteTransaction<K, V> for Transaction<K, V>
+    where K: Into<String> + Ord + Clone,
+          V: Serializable
 {
-    fn update(&mut self, key: S, value: S) -> Option<S> {
+    fn update(&mut self, key: K, value: V) -> Option<V> {
         let opt = self.store.insert(key.clone(), value);
         if self.backup_store.is_none() {
             self.rollback_items.push(Item {
@@ -98,7 +106,7 @@ impl<S> WriteTransaction<S> for Transaction<S>
         opt
     }
 
-    fn remove(&mut self, key: &S) -> Option<S> {
+    fn remove(&mut self, key: &K) -> Option<V> {
         let opt = self.store.remove(key);
         if self.backup_store.is_none() {
             self.rollback_items.push(Item {

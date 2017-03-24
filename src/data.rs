@@ -1,11 +1,12 @@
 use std::time::SystemTime;
+use std::convert::From;
 use error::{Result, Error, ErrorKind};
 
 static CRLF: &'static str = "\r\n";
 static STRING_PREFIX: &'static str = "+";
 static INT_PREFIX: &'static str = ":";
 
-pub trait Serializable
+pub trait Serializable: Clone
     where Self: Sized
 {
     fn try_from(String) -> Result<Self>;
@@ -13,7 +14,7 @@ pub trait Serializable
 }
 
 // TODO: JSON support: https://github.com/serde-rs/json .
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     String(String),
     Int(i64),
@@ -75,5 +76,11 @@ impl DataWithTimestamp {
             data: data,
             timestamp: SystemTime::now(),
         }
+    }
+}
+
+impl From<Data> for DataWithTimestamp {
+    fn from(data: Data) -> DataWithTimestamp {
+        Self::new(data)
     }
 }
