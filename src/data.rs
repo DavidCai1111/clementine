@@ -15,18 +15,20 @@ pub trait Serializable: Clone
 
 // TODO: JSON support: https://github.com/serde-rs/json .
 #[derive(Debug, Clone, PartialEq)]
-pub enum Data {
-    String(String),
+pub enum Data<S: Into<String> + Clone> {
+    String(S),
     Int(i64),
 }
 
-impl Data {
-    fn from_string(s: String) -> Result<Self> {
-        Ok(Data::String(s[1..s.len() - 2].to_string()))
+impl<S: Into<String> + Clone> Data<S> {
+    fn from_string(s: S) -> Result<Data<String>> {
+        let string = s.into();
+        Ok(Data::String(string[1..string.len() - 2].to_string()))
     }
 
-    fn from_int(s: String) -> Result<Self> {
-        match s[1..s.len() - 2].parse::<i64>() {
+    fn from_int(s: S) -> Result<Data<S>> {
+        let string = s.into();
+        match string[1..string.len() - 2].parse::<i64>() {
             Ok(int) => Ok(Data::Int(int)),
             Err(_) => Err(Error::new(ErrorKind::InvalidSerializedString)),
         }
@@ -41,15 +43,15 @@ impl Data {
     }
 }
 
-impl Serializable for Data {
+impl Serializable for Data<String> {
     fn into(data: Self) -> String {
         match data {
-            Data::String(string) => Self::serialize_string(string),
+            Data::String(string) => Self::serialize_string(string.into()),
             Data::Int(int) => Self::serialize_int(int),
         }
     }
 
-    fn try_from(string: String) -> Result<Self> {
+    fn try_from(string: String) -> Result<Data<String>> {
         if string.len() <= 2 || string.ends_with(CRLF) {
             return Err(Error::new(ErrorKind::InvalidSerializedString));
         }
@@ -65,13 +67,13 @@ impl Serializable for Data {
 }
 
 #[derive(Debug)]
-pub struct DataWithTimestamp {
-    data: Data,
+pub struct DataWithTimestamp<S: Into<String> + Clone> {
+    data: Data<S>,
     timestamp: SystemTime,
 }
 
-impl DataWithTimestamp {
-    pub fn new(data: Data) -> DataWithTimestamp {
+impl<S: Into<String> + Clone> DataWithTimestamp<S> {
+    pub fn new(data: Data<S>) -> DataWithTimestamp<S> {
         DataWithTimestamp {
             data: data,
             timestamp: SystemTime::now(),
@@ -79,8 +81,24 @@ impl DataWithTimestamp {
     }
 }
 
-impl From<Data> for DataWithTimestamp {
-    fn from(data: Data) -> DataWithTimestamp {
+impl<S: Into<String> + Clone> From<Data<S>> for DataWithTimestamp<S> {
+    fn from(data: Data<S>) -> DataWithTimestamp<S> {
         Self::new(data)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_string() {
+        assert_eq!(Data::String("test_from_string".to_string()),
+                   Data::from_string("+test_from_string\r\n").unwrap());
+    }
+
+    #[test]
+    fn test_from_int() {
+        assert_eq!(Data::Int(22), Data::from_int(":22\r\n").unwrap());
     }
 }

@@ -4,9 +4,9 @@ use clementine::{Database, Data, Result};
 
 #[test]
 fn test_read_empty() {
-    let db: &Database<&str, Data> = &Database::new().unwrap();
+    let db: &Database<&str, Data<String>> = &Database::new().unwrap();
     let result = db.read(|txn| -> Result<()> {
-        assert!(txn.get("123").is_none());
+        assert!(txn.get("not_exist").is_none());
         Ok(())
     });
     assert!(result.is_ok());
@@ -29,7 +29,7 @@ fn test_remove() {
     let update_result = db.update(|txn| -> Result<()> {
         assert!(txn.update("1", Data::Int(1)).is_none());
         assert_eq!(&Data::Int(1), txn.get("1").unwrap());
-        assert!(txn.remove(&"1").is_some());
+        assert!(txn.remove("1").is_some());
         assert!(txn.get("1").is_none());
         Ok(())
     });
@@ -41,6 +41,7 @@ fn test_remove() {
     });
     assert!(read_result.is_ok());
 }
+
 #[test]
 fn test_remove_all() {
     let db = &Database::new().unwrap();

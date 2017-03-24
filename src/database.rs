@@ -88,13 +88,13 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let db: Database<String, Data> = Database::new().unwrap();
+        let db: Database<String, Data<String>> = Database::new().unwrap();
         assert_eq!(false, db.closed);
     }
 
     #[test]
     fn test_close() {
-        let mut db: Database<String, Data> = Database::new().unwrap();
+        let mut db: Database<String, Data<String>> = Database::new().unwrap();
         assert!(db.close().is_ok());
         assert!(db.close().is_err());
         assert!(db.close().is_err());

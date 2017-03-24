@@ -10,6 +10,15 @@ struct Item<K, V>
     value: Option<V>,
 }
 
+impl<K, V> Item<K, V>
+    where K: Into<String> + Ord + Clone,
+          V: Serializable
+{
+    fn new(k: K, v: Option<V>) -> Item<K, V> {
+        Item { key: k, value: v }
+    }
+}
+
 pub trait ReadTransaction<K, V>
     where K: Into<String> + Ord + Clone,
           V: Serializable
@@ -24,7 +33,7 @@ pub trait WriteTransaction<K, V>: ReadTransaction<K, V>
           V: Serializable
 {
     fn update(&mut self, key: K, value: V) -> Option<V>;
-    fn remove(&mut self, key: &K) -> Option<V>;
+    fn remove(&mut self, key: K) -> Option<V>;
     fn remove_all(&mut self);
 }
 
@@ -76,10 +85,7 @@ impl<K, V> ReadTransaction<K, V> for Transaction<K, V>
           V: Serializable
 {
     fn get(&self, key: K) -> Option<&V> {
-        match self.store.get(&key) {
-            Some(value) => Some(&*value),
-            None => None,
-        }
+        self.store.get(&key)
     }
 
     fn len(&self) -> usize {
@@ -96,25 +102,19 @@ impl<K, V> WriteTransaction<K, V> for Transaction<K, V>
           V: Serializable
 {
     fn update(&mut self, key: K, value: V) -> Option<V> {
-        let opt = self.store.insert(key.clone(), value);
+        let previous_value = self.store.insert(key.clone(), value);
         if self.backup_store.is_none() {
-            self.rollback_items.push(Item {
-                key: key.clone(),
-                value: opt.clone(),
-            });
+            self.rollback_items.push(Item::new(key, previous_value.clone()));
         }
-        opt
+        previous_value
     }
 
-    fn remove(&mut self, key: &K) -> Option<V> {
-        let opt = self.store.remove(key);
+    fn remove(&mut self, key: K) -> Option<V> {
+        let previous_value = self.store.remove(&key);
         if self.backup_store.is_none() {
-            self.rollback_items.push(Item {
-                key: key.clone(),
-                value: opt.clone(),
-            });
+            self.rollback_items.push(Item::new(key, previous_value.clone()));
         }
-        opt
+        previous_value
     }
 
     fn remove_all(&mut self) {
