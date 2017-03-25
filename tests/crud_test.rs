@@ -1,10 +1,10 @@
 extern crate clementine;
 
-use clementine::{Database, Data, Result};
+use clementine::{Database, Data, Result, PersistType};
 
 #[test]
 fn test_read_empty() {
-    let db: &Database<&str> = &Database::new().unwrap();
+    let db: &Database<&str> = &Database::new(PersistType::Memory).unwrap();
     let result = db.read(|txn| -> Result<()> {
         assert!(txn.get("not_exist").is_none());
         Ok(())
@@ -14,7 +14,7 @@ fn test_read_empty() {
 
 #[test]
 fn test_update() {
-    let db = &Database::new().unwrap();
+    let db = &Database::new(PersistType::Memory).unwrap();
     let result = db.update(|txn| -> Result<()> {
         assert!(txn.update("1", Data::Int(1)).is_none());
         assert_eq!(Data::Int(1), *txn.get("1").unwrap());
@@ -25,7 +25,7 @@ fn test_update() {
 
 #[test]
 fn test_remove() {
-    let db = &Database::new().unwrap();
+    let db = &Database::new(PersistType::Memory).unwrap();
     let update_result = db.update(|txn| -> Result<()> {
         assert!(txn.update("1", Data::Int(1)).is_none());
         assert_eq!(&Data::Int(1), txn.get("1").unwrap());
@@ -44,7 +44,7 @@ fn test_remove() {
 
 #[test]
 fn test_remove_all() {
-    let db = &Database::new().unwrap();
+    let db = &Database::new(PersistType::Memory).unwrap();
     let result = db.update(|txn| -> Result<()> {
         assert!(txn.update("1", Data::Int(1)).is_none());
         assert!(txn.update("2", Data::Int(2)).is_none());

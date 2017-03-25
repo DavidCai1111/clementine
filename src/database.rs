@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::RwLock;
 use transaction::{Transaction, ReadTransaction, WriteTransaction};
 use error::{Error, ErrorKind, Result};
+use persist::PersistType;
 
 #[derive(Debug)]
 pub struct Database<K>
@@ -14,7 +15,7 @@ pub struct Database<K>
 impl<K> Database<K>
     where K: Into<String> + Ord + Clone
 {
-    pub fn new() -> Result<Database<K>> {
+    pub fn new(persist_type: PersistType) -> Result<Database<K>> {
         Ok(Database {
             txn_mut: RwLock::new(Transaction::new(BTreeMap::new())),
             closed: false,
@@ -83,13 +84,13 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let db: Database<String> = Database::new().unwrap();
+        let db: Database<String> = Database::new(PersistType::Memory).unwrap();
         assert_eq!(false, db.closed);
     }
 
     #[test]
     fn test_close() {
-        let mut db: Database<String> = Database::new().unwrap();
+        let mut db: Database<String> = Database::new(PersistType::Memory).unwrap();
         assert!(db.close().is_ok());
         assert!(db.close().is_err());
         assert!(db.close().is_err());
