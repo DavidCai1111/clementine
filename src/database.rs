@@ -2,22 +2,19 @@ use std::collections::BTreeMap;
 use std::sync::RwLock;
 use transaction::{Transaction, ReadTransaction, WriteTransaction};
 use error::{Error, ErrorKind, Result};
-use data::Serializable;
 
 #[derive(Debug)]
-pub struct Database<K, V>
-    where K: Into<String> + Ord + Clone,
-          V: Serializable
+pub struct Database<K>
+    where K: Into<String> + Ord + Clone
 {
-    txn_mut: RwLock<Transaction<K, V>>,
+    txn_mut: RwLock<Transaction<K>>,
     closed: bool,
 }
 
-impl<K, V> Database<K, V>
-    where K: Into<String> + Ord + Clone,
-          V: Serializable
+impl<K> Database<K>
+    where K: Into<String> + Ord + Clone
 {
-    pub fn new() -> Result<Database<K, V>> {
+    pub fn new() -> Result<Database<K>> {
         Ok(Database {
             txn_mut: RwLock::new(Transaction::new(BTreeMap::new())),
             closed: false,
@@ -25,7 +22,7 @@ impl<K, V> Database<K, V>
     }
 
     pub fn read<F>(&self, f: F) -> Result<()>
-        where F: Fn(&ReadTransaction<K, V>) -> Result<()>
+        where F: Fn(&ReadTransaction<K>) -> Result<()>
     {
         match self.txn_mut.read() {
             Ok(store) => {
@@ -39,7 +36,7 @@ impl<K, V> Database<K, V>
     }
 
     pub fn update<F>(&self, f: F) -> Result<()>
-        where F: Fn(&mut WriteTransaction<K, V>) -> Result<()>
+        where F: Fn(&mut WriteTransaction<K>) -> Result<()>
     {
         match self.txn_mut.write() {
             Ok(mut store) => {
@@ -70,9 +67,8 @@ impl<K, V> Database<K, V>
     }
 }
 
-impl<K, V> Drop for Database<K, V>
-    where K: Into<String> + Ord + Clone,
-          V: Serializable
+impl<K> Drop for Database<K>
+    where K: Into<String> + Ord + Clone
 {
     fn drop(&mut self) {
         if !self.closed {
@@ -84,17 +80,16 @@ impl<K, V> Drop for Database<K, V>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use data::Data;
 
     #[test]
     fn test_new() {
-        let db: Database<String, Data<String>> = Database::new().unwrap();
+        let db: Database<String> = Database::new().unwrap();
         assert_eq!(false, db.closed);
     }
 
     #[test]
     fn test_close() {
-        let mut db: Database<String, Data<String>> = Database::new().unwrap();
+        let mut db: Database<String> = Database::new().unwrap();
         assert!(db.close().is_ok());
         assert!(db.close().is_err());
         assert!(db.close().is_err());

@@ -1,5 +1,3 @@
-use std::time::SystemTime;
-use std::convert::From;
 use error::{Result, Error, ErrorKind};
 
 static CRLF: &'static str = "\r\n";
@@ -15,27 +13,25 @@ pub trait Serializable: Clone
 
 // TODO: JSON support: https://github.com/serde-rs/json .
 #[derive(Debug, Clone, PartialEq)]
-pub enum Data<S: Into<String> + Clone> {
-    String(S),
+pub enum Data {
+    String(String),
     Int(i64),
 }
 
-impl<S: Into<String> + Clone> Data<S> {
-    fn from_string(s: S) -> Result<Data<String>> {
-        let string = s.into();
-        Ok(Data::String(string[1..string.len() - 2].to_string()))
+impl Data {
+    fn from_string(s: String) -> Result<Data> {
+        Ok(Data::String(s[1..s.len() - 2].to_string()))
     }
 
-    fn from_int(s: S) -> Result<Data<S>> {
-        let string = s.into();
-        match string[1..string.len() - 2].parse::<i64>() {
+    fn from_int(s: String) -> Result<Data> {
+        match s[1..s.len() - 2].parse::<i64>() {
             Ok(int) => Ok(Data::Int(int)),
             Err(_) => Err(Error::new(ErrorKind::InvalidSerializedString)),
         }
     }
 
-    fn serialize_string(s: S) -> String {
-        STRING_PREFIX.to_string() + &s.into() + CRLF
+    fn serialize_string(s: String) -> String {
+        STRING_PREFIX.to_string() + &s + CRLF
     }
 
     fn serialize_int(i: i64) -> String {
@@ -43,7 +39,7 @@ impl<S: Into<String> + Clone> Data<S> {
     }
 }
 
-impl Serializable for Data<String> {
+impl Serializable for Data {
     fn into_string(self) -> String {
         match self {
             Data::String(string) => Self::serialize_string(string),
@@ -51,7 +47,7 @@ impl Serializable for Data<String> {
         }
     }
 
-    fn try_from(string: String) -> Result<Data<String>> {
+    fn try_from(string: String) -> Result<Data> {
         if string.len() < 2 || !string.ends_with(CRLF) {
             return Err(Error::new(ErrorKind::InvalidSerializedString));
         }
@@ -66,27 +62,6 @@ impl Serializable for Data<String> {
     }
 }
 
-#[derive(Debug)]
-pub struct DataWithTimestamp<S: Into<String> + Clone> {
-    data: Data<S>,
-    timestamp: SystemTime,
-}
-
-impl<S: Into<String> + Clone> DataWithTimestamp<S> {
-    pub fn new(data: Data<S>) -> DataWithTimestamp<S> {
-        DataWithTimestamp {
-            data: data,
-            timestamp: SystemTime::now(),
-        }
-    }
-}
-
-impl<S: Into<String> + Clone> From<Data<S>> for DataWithTimestamp<S> {
-    fn from(data: Data<S>) -> DataWithTimestamp<S> {
-        Self::new(data)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -94,28 +69,29 @@ mod tests {
     #[test]
     fn test_from_string() {
         assert_eq!(Data::String("test_\r\nfrom_string".to_string()),
-                   Data::from_string("+test_\r\nfrom_string\r\n").unwrap());
+                   Data::from_string("+test_\r\nfrom_string\r\n".to_string()).unwrap());
     }
 
     #[test]
     fn test_from_int() {
-        assert_eq!(Data::Int(22), Data::from_int(":22\r\n").unwrap());
+        assert_eq!(Data::Int(22),
+                   Data::from_int(":22\r\n".to_string()).unwrap());
     }
 
     #[test]
     fn test_from_invalid_int() {
-        assert!(Data::from_int(":22invalid888\r\n").is_err());
+        assert!(Data::from_int(":22invalid888\r\n".to_string()).is_err());
     }
 
     #[test]
     fn test_serialize_string() {
         assert_eq!("+test\r\n_serialize\r\n_string\r\n",
-                   Data::serialize_string("test\r\n_serialize\r\n_string"));
+                   Data::serialize_string("test\r\n_serialize\r\n_string".to_string()));
     }
 
     #[test]
     fn test_serialize_int() {
-        assert_eq!(":666\r\n", Data::<String>::serialize_int(666));
+        assert_eq!(":666\r\n", Data::serialize_int(666));
     }
 
     #[test]
