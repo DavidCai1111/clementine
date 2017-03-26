@@ -1,13 +1,12 @@
-use std::collections::BTreeMap;
-use std::sync::RwLock;
-use transaction::{Transaction, ReadTransaction, WriteTransaction};
-use error::{Error, ErrorKind, Result};
-use persist::{PersistType, Persistable, MemoryStore};
+use std::sync::*;
+use transaction::*;
+use error::*;
+use persist::*;
 
 pub struct Database<K>
     where K: Into<String> + Ord + Clone
 {
-    txn_mut: RwLock<Transaction<K>>,
+    txn_mut: RwLock<Transaction>,
     closed: bool,
     persist_store: Box<Persistable<K>>,
 }
@@ -16,14 +15,13 @@ impl<K> Database<K>
     where K: Into<String> + Ord + Clone
 {
     pub fn new(persist_type: PersistType) -> Result<Database<K>> {
-        let persist_store: Box<Persistable<K>>;
-        match persist_type {
-            PersistType::Memory => persist_store = Box::new(MemoryStore::default()),
-            PersistType::File(_) => persist_store = Box::new(MemoryStore {}),
-        }
+        let persist_store: Box<Persistable<K>> = match persist_type {
+            PersistType::Memory => Box::new(MemoryStore::default()),
+            PersistType::File(path) => Box::new(FileStore::new(path)?),
+        };
 
         Ok(Database {
-            txn_mut: RwLock::new(Transaction::new(BTreeMap::new())),
+            txn_mut: RwLock::new(Transaction::new(persist_store.load()?)),
             closed: false,
             persist_store: persist_store,
         })

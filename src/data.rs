@@ -1,4 +1,4 @@
-use error::{Result, Error, ErrorKind};
+use error::*;
 
 static CRLF: &'static str = "\r\n";
 static STRING_PREFIX: &'static str = "+";

@@ -1,18 +1,14 @@
-use std::collections::BTreeMap;
-use data::Data;
+use std::collections::*;
+use data::*;
 
 #[derive(Debug)]
-struct Item<K>
-    where K: Into<String> + Ord + Clone
-{
-    key: K,
+struct Item {
+    key: String,
     value: Option<Data>,
 }
 
-impl<K> Item<K>
-    where K: Into<String> + Ord + Clone
-{
-    fn new(k: K, v: Option<Data>) -> Item<K> {
+impl Item {
+    fn new(k: String, v: Option<Data>) -> Item {
         Item { key: k, value: v }
     }
 }
@@ -34,18 +30,14 @@ pub trait WriteTransaction<K>: ReadTransaction<K>
 }
 
 #[derive(Debug)]
-pub struct Transaction<K>
-    where K: Into<String> + Ord + Clone
-{
-    store: BTreeMap<K, Data>,
-    backup_store: Option<BTreeMap<K, Data>>,
-    rollback_items: Vec<Item<K>>,
+pub struct Transaction {
+    store: BTreeMap<String, Data>,
+    backup_store: Option<BTreeMap<String, Data>>,
+    rollback_items: Vec<Item>,
 }
 
-impl<K> Transaction<K>
-    where K: Into<String> + Ord + Clone
-{
-    pub fn new(store: BTreeMap<K, Data>) -> Transaction<K> {
+impl Transaction {
+    pub fn new(store: BTreeMap<String, Data>) -> Transaction {
         Transaction {
             store: store,
             backup_store: None,
@@ -74,11 +66,11 @@ impl<K> Transaction<K>
     }
 }
 
-impl<K> ReadTransaction<K> for Transaction<K>
+impl<K> ReadTransaction<K> for Transaction
     where K: Into<String> + Ord + Clone
 {
     fn get(&self, key: K) -> Option<&Data> {
-        self.store.get(&key)
+        self.store.get(&key.into())
     }
 
     fn len(&self) -> usize {
@@ -90,21 +82,21 @@ impl<K> ReadTransaction<K> for Transaction<K>
     }
 }
 
-impl<K> WriteTransaction<K> for Transaction<K>
+impl<K> WriteTransaction<K> for Transaction
     where K: Into<String> + Ord + Clone
 {
     fn update(&mut self, key: K, value: Data) -> Option<Data> {
-        let previous_value = self.store.insert(key.clone(), value);
+        let previous_value = self.store.insert(key.clone().into(), value);
         if self.backup_store.is_none() {
-            self.rollback_items.push(Item::new(key, previous_value.clone()));
+            self.rollback_items.push(Item::new(key.into(), previous_value.clone()));
         }
         previous_value
     }
 
     fn remove(&mut self, key: K) -> Option<Data> {
-        let previous_value = self.store.remove(&key);
+        let previous_value = self.store.remove(&key.clone().into());
         if self.backup_store.is_none() {
-            self.rollback_items.push(Item::new(key, previous_value.clone()));
+            self.rollback_items.push(Item::new(key.into(), previous_value.clone()));
         }
         previous_value
     }

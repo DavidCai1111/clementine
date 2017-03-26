@@ -1,6 +1,7 @@
 use std::error;
 use std::fmt;
 use std::result;
+use std::io;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -13,6 +14,8 @@ pub enum ErrorKind {
     ItemNotFound,
     // Data errors.
     InvalidSerializedString,
+    // IO errors
+    IOError,
 }
 
 #[derive(Debug)]
@@ -31,6 +34,7 @@ impl Error {
             ErrorKind::TransactionNotWritable => "transaction is not writable",
             ErrorKind::ItemNotFound => "item not found",
             ErrorKind::InvalidSerializedString => "invalid serialized string",
+            ErrorKind::IOError => "io error",
         }
     }
 }
@@ -50,5 +54,11 @@ impl error::Error for Error {
 impl From<ErrorKind> for Error {
     fn from(kind: ErrorKind) -> Error {
         Error { kind: kind }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(_: io::Error) -> Error {
+        Error { kind: ErrorKind::IOError }
     }
 }
