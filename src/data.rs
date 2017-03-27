@@ -31,11 +31,11 @@ impl Data {
     }
 
     fn serialize_string(s: String) -> String {
-        STRING_PREFIX.to_string() + &s + CRLF
+        String::from(STRING_PREFIX) + &s + CRLF
     }
 
     fn serialize_int(i: i64) -> String {
-        INT_PREFIX.to_string() + &i.to_string() + CRLF
+        String::from(INT_PREFIX) + &i.to_string() + CRLF
     }
 }
 
@@ -68,25 +68,25 @@ mod tests {
 
     #[test]
     fn test_from_string() {
-        assert_eq!(Data::String("test_\r\nfrom_string".to_string()),
-                   Data::from_string("+test_\r\nfrom_string\r\n".to_string()).unwrap());
+        assert_eq!(Data::String(String::from("test_\r\nfrom_string")),
+                   Data::from_string(String::from("+test_\r\nfrom_string\r\n")).unwrap());
     }
 
     #[test]
     fn test_from_int() {
         assert_eq!(Data::Int(22),
-                   Data::from_int(":22\r\n".to_string()).unwrap());
+                   Data::from_int(String::from(":22\r\n")).unwrap());
     }
 
     #[test]
     fn test_from_invalid_int() {
-        assert!(Data::from_int(":22invalid888\r\n".to_string()).is_err());
+        assert!(Data::from_int(String::from(":22invalid888\r\n")).is_err());
     }
 
     #[test]
     fn test_serialize_string() {
         assert_eq!("+test\r\n_serialize\r\n_string\r\n",
-                   Data::serialize_string("test\r\n_serialize\r\n_string".to_string()));
+                   Data::serialize_string(String::from("test\r\n_serialize\r\n_string")));
     }
 
     #[test]
@@ -96,26 +96,26 @@ mod tests {
 
     #[test]
     fn test_serializble_into() {
-        assert_eq!("+666\r\n", Data::String("666".to_string()).into_string());
+        assert_eq!("+666\r\n", Data::String(String::from("666")).into_string());
         assert_eq!(":666\r\n", Data::Int(666).into_string());
     }
 
     #[test]
     fn test_try_from_invalid() {
-        assert!(Data::try_from("".to_string()).is_err());
-        assert!(Data::try_from("\r\n".to_string()).is_err());
-        assert!(Data::try_from("11111".to_string()).is_err());
+        assert!(Data::try_from(String::from("")).is_err());
+        assert!(Data::try_from(String::from("\r\n")).is_err());
+        assert!(Data::try_from(String::from("11111")).is_err());
     }
 
     #[test]
     fn test_try_from_string() {
-        assert_eq!(Data::String("666".to_string()),
-                   Data::try_from("+666\r\n".to_string()).unwrap());
+        assert_eq!(Data::String(String::from("666")),
+                   Data::try_from(String::from("+666\r\n")).unwrap());
     }
 
     #[test]
     fn test_try_from_int() {
         assert_eq!(Data::Int(666),
-                   Data::try_from(":666\r\n".to_string()).unwrap());
+                   Data::try_from(String::from(":666\r\n")).unwrap());
     }
 }

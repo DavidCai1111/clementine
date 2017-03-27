@@ -17,7 +17,7 @@ fn test_update() {
     let db = &Database::new(PersistType::Memory).unwrap();
     let result = db.update(|txn| -> Result<()> {
         assert!(txn.update("1", Data::Int(1)).is_none());
-        assert_eq!(Data::Int(1), *txn.get("1").unwrap());
+        assert_eq!(&Data::Int(1), txn.get("1").unwrap());
         Ok(())
     });
     assert!(result.is_ok());

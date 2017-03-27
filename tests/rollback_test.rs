@@ -18,7 +18,7 @@ fn test_rollback_update() {
     assert!(update_fail_result.is_ok());
 
     let read_result = db.read(|txn| -> Result<()> {
-        assert_eq!(Data::Int(1), *txn.get("1").unwrap());
+        assert_eq!(&Data::Int(1), txn.get("1").unwrap());
         Ok(())
     });
     assert!(read_result.is_ok());
@@ -34,7 +34,7 @@ fn test_rollback_remove() {
     assert!(update_ok_result.is_ok());
 
     let read_result = db.read(|txn| -> Result<()> {
-        assert_eq!(Data::Int(1), *txn.get("1").unwrap());
+        assert_eq!(&Data::Int(1), txn.get("1").unwrap());
         Ok(())
     });
     assert!(read_result.is_ok());
@@ -46,7 +46,7 @@ fn test_rollback_remove() {
     assert!(update_fail_result.is_ok());
 
     let read_rollback_result = db.read(|txn| -> Result<()> {
-        assert_eq!(Data::Int(1), *txn.get("1").unwrap());
+        assert_eq!(&Data::Int(1), txn.get("1").unwrap());
         Ok(())
     });
     assert!(read_rollback_result.is_ok());
@@ -69,8 +69,8 @@ fn test_rollback_remove_all() {
     assert!(update_fail_result.is_ok());
 
     let read_rollback_result = db.read(|txn| -> Result<()> {
-        assert_eq!(Data::Int(1), *txn.get("1").unwrap());
-        assert_eq!(Data::Int(2), *txn.get("2").unwrap());
+        assert_eq!(&Data::Int(1), txn.get("1").unwrap());
+        assert_eq!(&Data::Int(2), txn.get("2").unwrap());
         Ok(())
     });
     assert!(read_rollback_result.is_ok());
