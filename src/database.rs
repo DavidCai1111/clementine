@@ -30,45 +30,33 @@ impl<K> Database<K>
     pub fn read<F>(&self, f: F) -> Result<()>
         where F: Fn(&ReadTransaction<K>) -> Result<()>
     {
-        match self.txn_mut.read() {
-            Ok(store) => {
-                if self.closed {
-                    return Err(Error::new(ErrorKind::DataBaseClosed));
-                }
-                f(&*store)
-            }
-            Err(_) => unreachable!(),
+        let store = self.txn_mut.read()?;
+        if self.closed {
+            return Err(Error::new(ErrorKind::DataBaseClosed));
         }
+        f(&*store)
     }
 
     pub fn update<F>(&self, f: F) -> Result<()>
         where F: Fn(&mut WriteTransaction<K>) -> Result<()>
     {
-        match self.txn_mut.write() {
-            Ok(mut store) => {
-                if self.closed {
-                    return Err(Error::new(ErrorKind::DataBaseClosed));
-                }
-
-                if f(&mut *store).is_err() {
-                    store.rollback();
-                }
-                store.commit();
-                Ok(())
-            }
-            Err(_) => unreachable!(),
+        let mut store = self.txn_mut.write()?;
+        if self.closed {
+            return Err(Error::new(ErrorKind::DataBaseClosed));
         }
+        if f(&mut *store).is_err() {
+            store.rollback();
+        }
+        store.commit();
+        Ok(())
     }
 
     pub fn close(&mut self) -> Result<()> {
         if self.closed {
             return Err(Error::new(ErrorKind::DataBaseClosed));
         }
-
-        match self.txn_mut.write() {
-            Ok(_) => self.closed = true,
-            Err(_) => unreachable!(),
-        }
+        let _ = self.txn_mut.write()?;
+        self.closed = true;
         Ok(())
     }
 }

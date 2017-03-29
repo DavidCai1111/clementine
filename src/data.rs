@@ -26,10 +26,7 @@ impl Data {
     }
 
     fn from_int(s: String) -> Result<Data> {
-        match s[1..s.len() - 2].parse::<i64>() {
-            Ok(int) => Ok(Data::Int(int)),
-            Err(_) => Err(Error::new(ErrorKind::InvalidSerializedString)),
-        }
+        Ok(Data::Int(s[1..s.len() - 2].parse::<i64>()?))
     }
 
     fn serialize_string(s: String) -> String {

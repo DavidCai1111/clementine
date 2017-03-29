@@ -2,6 +2,8 @@ use std::error;
 use std::fmt;
 use std::result;
 use std::io;
+use std::sync;
+use std::num;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -16,6 +18,7 @@ pub enum ErrorKind {
     InvalidSerializedString,
     // IO errors
     IOError,
+    RWLockPoisonError,
 }
 
 #[derive(Debug)]
@@ -35,6 +38,7 @@ impl Error {
             ErrorKind::ItemNotFound => "item not found",
             ErrorKind::InvalidSerializedString => "invalid serialized string",
             ErrorKind::IOError => "io error",
+            ErrorKind::RWLockPoisonError => "rwlock poison error",
         }
     }
 }
@@ -60,5 +64,17 @@ impl From<ErrorKind> for Error {
 impl From<io::Error> for Error {
     fn from(_: io::Error) -> Error {
         Error { kind: ErrorKind::IOError }
+    }
+}
+
+impl<T> From<sync::PoisonError<T>> for Error {
+    fn from(_: sync::PoisonError<T>) -> Error {
+        Error { kind: ErrorKind::IOError }
+    }
+}
+
+impl From<num::ParseIntError> for Error {
+    fn from(_: num::ParseIntError) -> Error {
+        Error { kind: ErrorKind::InvalidSerializedString }
     }
 }
