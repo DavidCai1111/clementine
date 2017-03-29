@@ -1,5 +1,6 @@
 use std::collections::*;
 use data::*;
+use std::ops::Deref;
 
 #[derive(Debug)]
 struct Item {
@@ -17,8 +18,10 @@ pub trait ReadTransaction<K>
     where K: Into<String> + Ord + Clone
 {
     fn get(&self, key: K) -> Option<&Data>;
+    fn get_mut(&mut self, key: K) -> Option<&mut Data>;
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool;
+    fn contains_key(&self, key: K) -> bool;
 }
 
 pub trait WriteTransaction<K>: ReadTransaction<K>
@@ -27,6 +30,7 @@ pub trait WriteTransaction<K>: ReadTransaction<K>
     fn update(&mut self, key: K, value: Data) -> Option<Data>;
     fn remove(&mut self, key: K) -> Option<Data>;
     fn remove_all(&mut self);
+    fn entry(&mut self, key: K) -> btree_map::Entry<String, Data>;
 }
 
 #[derive(Debug)]
@@ -59,10 +63,16 @@ impl Transaction {
             if item.value.is_none() {
                 self.store.remove(&item.key.clone());
             } else {
-                self.store
-                    .insert(item.key.clone(), item.value.clone().unwrap());
+                self.store.insert(item.key.clone(), item.value.clone().unwrap());
             }
         }
+    }
+}
+
+impl Deref for Transaction {
+    type Target = BTreeMap<String, Data>;
+    fn deref(&self) -> &BTreeMap<String, Data> {
+        &self.store
     }
 }
 
@@ -73,12 +83,20 @@ impl<K> ReadTransaction<K> for Transaction
         self.store.get(&key.into())
     }
 
+    fn get_mut(&mut self, key: K) -> Option<&mut Data> {
+        self.store.get_mut(&key.into())
+    }
+
     fn len(&self) -> usize {
         self.store.len()
     }
 
     fn is_empty(&self) -> bool {
         self.store.is_empty()
+    }
+
+    fn contains_key(&self, key: K) -> bool {
+        self.store.contains_key(&key.into())
     }
 }
 
@@ -105,4 +123,9 @@ impl<K> WriteTransaction<K> for Transaction
         self.backup_store = Some(self.store.clone());
         self.store.clear();
     }
+
+    fn entry(&mut self, key: K) -> btree_map::Entry<String, Data> {
+        self.store.entry(key.into())
+    }
 }
+
