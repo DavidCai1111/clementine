@@ -4,6 +4,8 @@ static CRLF: &'static str = "\r\n";
 static STRING_PREFIX: &'static str = "+";
 static INT_PREFIX: &'static str = ":";
 
+macro_rules! serialize_template { () => ("{prefix}{value}{crlf}") }
+
 pub trait Serializable: Clone
     where Self: Sized
 {
@@ -31,11 +33,17 @@ impl Data {
     }
 
     fn serialize_string(s: String) -> String {
-        String::from(STRING_PREFIX) + &s + CRLF
+        format!(serialize_template!(),
+                prefix = STRING_PREFIX,
+                value = s,
+                crlf = CRLF)
     }
 
     fn serialize_int(i: i64) -> String {
-        String::from(INT_PREFIX) + &i.to_string() + CRLF
+        format!(serialize_template!(),
+                prefix = INT_PREFIX,
+                value = i,
+                crlf = CRLF)
     }
 }
 

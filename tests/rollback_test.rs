@@ -63,7 +63,7 @@ fn test_rollback_remove_all() {
     assert!(update_result.is_ok());
 
     let update_fail_result = db.update(|txn| -> Result<()> {
-        txn.remove_all();
+        txn.clear();
         Err(Error::new(ErrorKind::DataBaseClosed))
     });
     assert!(update_fail_result.is_ok());

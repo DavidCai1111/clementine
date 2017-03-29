@@ -8,6 +8,9 @@ static CRLF: &'static str = "\r\n";
 static SET_PREFIX: &'static str = "SET";
 static REMOVE_PREFIX: &'static str = "REMOVE";
 
+macro_rules! serialize_set_template { () => ("{prefix}{key}{crlf}{value}{crlf}") }
+macro_rules! serialize_remove_template { () => ("{prefix}{key}{crlf}") }
+
 #[derive(Debug)]
 pub enum PersistType {
     Memory,
@@ -39,7 +42,8 @@ impl<K> Persistable<K> for FileStore
 {
     fn set(&mut self, key: String, data: Data) -> Result<()> {
         Ok(write!(self.file,
-                  "{prefix}{key}\r\n{value}\r\n",
+                  serialize_set_template!(),
+                  crlf = CRLF,
                   prefix = SET_PREFIX,
                   key = key,
                   value = data.into_string())?)
@@ -47,7 +51,8 @@ impl<K> Persistable<K> for FileStore
 
     fn remove(&mut self, key: String) -> Result<()> {
         Ok(write!(self.file,
-                  "{prefix}{key}\r\n",
+                  serialize_remove_template!(),
+                  crlf = CRLF,
                   prefix = REMOVE_PREFIX,
                   key = key)?)
     }

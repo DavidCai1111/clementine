@@ -43,14 +43,14 @@ fn test_remove() {
 }
 
 #[test]
-fn test_remove_all() {
+fn test_clear() {
     let db = &Database::new(PersistType::Memory).unwrap();
     let result = db.update(|txn| -> Result<()> {
         assert!(txn.update("1", Data::Int(1)).is_none());
         assert!(txn.update("2", Data::Int(2)).is_none());
         assert!(txn.update("3", Data::Int(3)).is_none());
         assert_eq!(3, txn.len());
-        txn.remove_all();
+        txn.clear();
         assert_eq!(0, txn.len());
         assert!(txn.is_empty());
         Ok(())

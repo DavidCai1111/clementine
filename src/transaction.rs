@@ -29,8 +29,7 @@ pub trait WriteTransaction<K>: ReadTransaction<K>
 {
     fn update(&mut self, key: K, value: Data) -> Option<Data>;
     fn remove(&mut self, key: K) -> Option<Data>;
-    fn remove_all(&mut self);
-    fn entry(&mut self, key: K) -> btree_map::Entry<String, Data>;
+    fn clear(&mut self);
 }
 
 #[derive(Debug)]
@@ -106,7 +105,8 @@ impl<K> WriteTransaction<K> for Transaction
     fn update(&mut self, key: K, value: Data) -> Option<Data> {
         let previous_value = self.store.insert(key.clone().into(), value);
         if self.backup_store.is_none() {
-            self.rollback_items.push(Item::new(key.into(), previous_value.clone()));
+            self.rollback_items
+                .push(Item::new(key.into(), previous_value.clone()));
         }
         previous_value
     }
@@ -114,18 +114,14 @@ impl<K> WriteTransaction<K> for Transaction
     fn remove(&mut self, key: K) -> Option<Data> {
         let previous_value = self.store.remove(&key.clone().into());
         if self.backup_store.is_none() {
-            self.rollback_items.push(Item::new(key.into(), previous_value.clone()));
+            self.rollback_items
+                .push(Item::new(key.into(), previous_value.clone()));
         }
         previous_value
     }
 
-    fn remove_all(&mut self) {
+    fn clear(&mut self) {
         self.backup_store = Some(self.store.clone());
         self.store.clear();
     }
-
-    fn entry(&mut self, key: K) -> btree_map::Entry<String, Data> {
-        self.store.entry(key.into())
-    }
 }
-
