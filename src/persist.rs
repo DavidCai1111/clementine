@@ -17,9 +17,7 @@ pub enum PersistType {
     File(String),
 }
 
-pub trait Persistable<K>
-    where K: Into<String> + Ord + Clone
-{
+pub trait Persistable {
     fn set(&mut self, String, Data) -> Result<()>;
     fn remove(&mut self, String) -> Result<()>;
     fn load(&self) -> Result<BTreeMap<String, Data>>;
@@ -37,9 +35,19 @@ impl FileStore {
     }
 }
 
-impl<K> Persistable<K> for FileStore
-    where K: Into<String> + Ord + Clone
-{
+impl FileStore {
+    fn extract_set(&self, string: String) -> Result<(String, Data)> {
+        let delimiter_index = string.find(CRLF)
+            .ok_or(Error::new(ErrorKind::InvalidSerializedString))?;
+
+        let key = String::from(&string[SET_PREFIX.len()..delimiter_index]);
+        let value = String::from(&string[delimiter_index + 2..(string.len() - 1)]);
+
+        Ok((key, Data::try_from(value)?))
+    }
+}
+
+impl Persistable for FileStore {
     fn set(&mut self, key: String, data: Data) -> Result<()> {
         Ok(write!(self.file,
                   serialize_set_template!(),
@@ -64,15 +72,8 @@ impl<K> Persistable<K> for FileStore
         for line in reader.lines() {
             let l = line?;
             if l.starts_with(SET_PREFIX) {
-                let csrf_index = l.find(CRLF);
-                if csrf_index.is_none() {
-                    return Err(Error::new(ErrorKind::InvalidSerializedString));
-                }
-
-                let key = l[SET_PREFIX.len()..csrf_index.unwrap()].to_string();
-                let value = l[(csrf_index.unwrap()) + 2..(l.len() - 1)].to_string();
-
-                btree.insert(key, Data::try_from(value)?);
+                let (key, value) = self.extract_set(l)?;
+                btree.insert(key, value);
             } else if l.starts_with(REMOVE_PREFIX) {
                 let csrf_index = l.find(CRLF);
                 if csrf_index.is_none() {
@@ -98,9 +99,7 @@ impl<K> Persistable<K> for FileStore
 #[derive(Debug, Default)]
 pub struct MemoryStore {}
 
-impl<K> Persistable<K> for MemoryStore
-    where K: Into<String> + Ord + Clone
-{
+impl Persistable for MemoryStore {
     fn set(&mut self, _: String, _: Data) -> Result<()> {
         Ok(())
     }
@@ -115,5 +114,33 @@ impl<K> Persistable<K> for MemoryStore
 
     fn clear(&mut self) -> Result<()> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod memory_store_tests {
+    use super::*;
+
+    #[test]
+    fn test_set() {
+        let mut store = MemoryStore::default();
+        assert!(store.set(String::from("test"), Data::Int(1)).is_ok());
+    }
+
+    #[test]
+    fn test_remove() {
+        let mut store = MemoryStore::default();
+        assert!(store.remove(String::from("test")).is_ok());
+    }
+
+    #[test]
+    fn test_load() {
+        assert!(MemoryStore::default().load().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_clear() {
+        let mut store = MemoryStore::default();
+        assert!(store.clear().is_ok());
     }
 }

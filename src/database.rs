@@ -3,19 +3,15 @@ use transaction::*;
 use error::*;
 use persist::*;
 
-pub struct Database<K>
-    where K: Into<String> + Ord + Clone
-{
+pub struct Database {
     txn_mut: RwLock<Transaction>,
     closed: bool,
-    persist_store: Box<Persistable<K>>,
+    persist_store: Box<Persistable>,
 }
 
-impl<K> Database<K>
-    where K: Into<String> + Ord + Clone
-{
-    pub fn new(persist_type: PersistType) -> Result<Database<K>> {
-        let persist_store: Box<Persistable<K>> = match persist_type {
+impl Database {
+    pub fn new(persist_type: PersistType) -> Result<Database> {
+        let persist_store: Box<Persistable> = match persist_type {
             PersistType::Memory => Box::new(MemoryStore::default()),
             PersistType::File(path) => Box::new(FileStore::new(path)?),
         };
@@ -27,8 +23,9 @@ impl<K> Database<K>
         })
     }
 
-    pub fn read<F>(&self, f: F) -> Result<()>
-        where F: Fn(&ReadTransaction<K>) -> Result<()>
+    pub fn read<F, K>(&self, f: F) -> Result<()>
+        where F: Fn(&ReadTransaction<K>) -> Result<()>,
+              K: Into<String> + Ord + Clone
     {
         let store = self.txn_mut.read()?;
         if self.closed {
@@ -37,8 +34,9 @@ impl<K> Database<K>
         f(&*store)
     }
 
-    pub fn update<F>(&self, f: F) -> Result<()>
-        where F: Fn(&mut WriteTransaction<K>) -> Result<()>
+    pub fn update<F, K>(&self, f: F) -> Result<()>
+        where F: Fn(&mut WriteTransaction<K>) -> Result<()>,
+              K: Into<String> + Ord + Clone
     {
         let mut store = self.txn_mut.write()?;
         if self.closed {
@@ -61,9 +59,7 @@ impl<K> Database<K>
     }
 }
 
-impl<K> Drop for Database<K>
-    where K: Into<String> + Ord + Clone
-{
+impl Drop for Database {
     fn drop(&mut self) {
         if !self.closed {
             self.close().unwrap();
@@ -77,13 +73,13 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let db: Database<String> = Database::new(PersistType::Memory).unwrap();
+        let db = Database::new(PersistType::Memory).unwrap();
         assert_eq!(false, db.closed);
     }
 
     #[test]
     fn test_close() {
-        let mut db: Database<String> = Database::new(PersistType::Memory).unwrap();
+        let mut db = Database::new(PersistType::Memory).unwrap();
         assert!(db.close().is_ok());
         assert!(db.close().is_err());
         assert!(db.close().is_err());

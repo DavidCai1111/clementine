@@ -22,7 +22,7 @@ pub enum Data {
 
 impl Data {
     fn from_string(s: String) -> Result<Data> {
-        Ok(Data::String(s[1..s.len() - 2].to_string()))
+        Ok(Data::String(String::from(&s[1..s.len() - 2])))
     }
 
     fn from_int(s: String) -> Result<Data> {

@@ -4,7 +4,7 @@ use clementine::{Database, Data, Result, PersistType};
 
 #[test]
 fn test_read_empty() {
-    let db: &Database<&str> = &Database::new(PersistType::Memory).unwrap();
+    let db = &Database::new(PersistType::Memory).unwrap();
     let result = db.read(|txn| -> Result<()> {
         assert!(txn.get("not_exist").is_none());
         Ok(())
