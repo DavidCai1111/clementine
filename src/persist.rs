@@ -26,7 +26,7 @@ pub trait Persistable {
 
 #[derive(Debug)]
 pub struct FileStore {
-    file: fs::File,
+    pub file: fs::File,
 }
 
 impl FileStore {
@@ -36,14 +36,21 @@ impl FileStore {
 }
 
 impl FileStore {
-    fn extract_set(&self, string: String) -> Result<(String, Data)> {
-        let delimiter_index = string.find(CRLF)
+    fn extract_set(line: String) -> Result<(String, Data)> {
+        let delimiter_index = line.find(CRLF)
             .ok_or(Error::new(ErrorKind::InvalidSerializedString))?;
 
-        let key = String::from(&string[SET_PREFIX.len()..delimiter_index]);
-        let value = String::from(&string[delimiter_index + 2..(string.len() - 1)]);
+        let key = String::from(&line[SET_PREFIX.len()..delimiter_index]);
+        let value = String::from(&line[delimiter_index + 2..line.len() - 2]);
 
         Ok((key, Data::try_from(value)?))
+    }
+
+    fn extract_remove(line: String) -> Result<String> {
+        let delimiter_index = line.find(CRLF)
+            .ok_or(Error::new(ErrorKind::InvalidSerializedString))?;
+
+        Ok(String::from(&line[REMOVE_PREFIX.len()..delimiter_index]))
     }
 }
 
@@ -69,20 +76,13 @@ impl Persistable for FileStore {
         let reader = BufReader::new(&self.file);
         let mut btree: BTreeMap<String, Data> = BTreeMap::new();
 
-        for line in reader.lines() {
-            let l = line?;
-            if l.starts_with(SET_PREFIX) {
-                let (key, value) = self.extract_set(l)?;
+        for line_result in reader.lines() {
+            let line = line_result?;
+            if line.starts_with(SET_PREFIX) {
+                let (key, value) = Self::extract_set(line)?;
                 btree.insert(key, value);
-            } else if l.starts_with(REMOVE_PREFIX) {
-                let csrf_index = l.find(CRLF);
-                if csrf_index.is_none() {
-                    return Err(Error::new(ErrorKind::InvalidSerializedString));
-                }
-
-                let key = l[REMOVE_PREFIX.len()..csrf_index.unwrap()].to_string();
-
-                btree.remove(&key);
+            } else if line.starts_with(REMOVE_PREFIX) {
+                btree.remove(&Self::extract_remove(line)?);
             } else {
                 return Err(Error::new(ErrorKind::InvalidSerializedString));
             }
@@ -142,5 +142,60 @@ mod memory_store_tests {
     fn test_clear() {
         let mut store = MemoryStore::default();
         assert!(store.clear().is_ok());
+    }
+}
+
+#[cfg(test)]
+mod file_store_tests {
+    use super::*;
+    use std::env;
+    use std::io::Read;
+
+    #[test]
+    fn test_extract_set_string() {
+        let line = String::from("SETkey\r\n+value\r\n\r\n");
+        let (key, value) = FileStore::extract_set(line).unwrap();
+        assert_eq!("key", key);
+        assert_eq!(Data::String(String::from("value")), value);
+    }
+
+    #[test]
+    fn test_extract_set_int() {
+        let line = String::from("SETkey\r\n:888\r\n\r\n");
+        let (key, value) = FileStore::extract_set(line).unwrap();
+        assert_eq!("key", key);
+        assert_eq!(Data::Int(888), value);
+    }
+
+    #[test]
+    fn test_extract_remove() {
+        let line = String::from("REMOVEkey\r\n");
+        let key = FileStore::extract_remove(line).unwrap();
+        assert_eq!("key", key);
+    }
+
+    #[test]
+    fn test_new() {
+        let mut cdb_path = env::current_dir().unwrap();
+        cdb_path.push("tests/test.cdb");
+        let path = String::from(cdb_path.as_path().to_str().unwrap());
+        let store = FileStore::new(path).unwrap();
+        assert!(store.file.metadata().unwrap().is_file());
+    }
+
+    #[test]
+    fn test_set() {
+        let mut cdb_path = env::current_dir().unwrap();
+        cdb_path.push("tests/test.cdb");
+        let path = String::from(cdb_path.as_path().to_str().unwrap());
+        let mut store = FileStore::new(path.clone()).unwrap();
+        store.set(String::from("key"), Data::String(String::from("value")))
+            .unwrap();
+        store.set(String::from("key"), Data::String(String::from("value")))
+            .unwrap();
+
+        let mut content = String::new();
+        fs::File::open(path).unwrap().read_to_string(&mut content).unwrap();
+        assert_eq!("SETkey\r\n+value\r\n\r\nSETkey\r\n+value\r\n\r\n", content);
     }
 }
