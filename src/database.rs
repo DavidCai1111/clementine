@@ -11,7 +11,7 @@ pub struct Database {
 
 impl Database {
     pub fn new(persist_type: PersistType) -> Result<Database> {
-        let persist_store: Box<Persistable> = match persist_type {
+        let mut persist_store: Box<Persistable> = match persist_type {
             PersistType::Memory => Box::new(MemoryStore::default()),
             PersistType::File(path) => Box::new(FileStore::new(path)?),
         };

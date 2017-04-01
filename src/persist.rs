@@ -1,14 +1,14 @@
 use std::collections::*;
 use std::fs;
-use std::io::{Write, BufReader, BufRead};
+use std::io::{Write, Read};
 use data::*;
 use error::*;
 
 static CRLF: &'static str = "\r\n";
-static SET_PREFIX: &'static str = "SET";
-static REMOVE_PREFIX: &'static str = "REMOVE";
+static SET_PREFIX: &'static str = "$";
+static REMOVE_PREFIX: &'static str = "#";
 
-macro_rules! serialize_set_template { () => ("{prefix}{key}{crlf}{value}{crlf}") }
+macro_rules! serialize_set_template { () => ("{prefix}{key} {value}") }
 macro_rules! serialize_remove_template { () => ("{prefix}{key}{crlf}") }
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ pub enum PersistType {
 pub trait Persistable {
     fn set(&mut self, String, Data) -> Result<()>;
     fn remove(&mut self, String) -> Result<()>;
-    fn load(&self) -> Result<BTreeMap<String, Data>>;
+    fn load(&mut self) -> Result<BTreeMap<String, Data>>;
     fn clear(&mut self) -> Result<()>;
 }
 
@@ -45,11 +45,11 @@ impl FileStore {
 
 impl FileStore {
     fn extract_set(line: String) -> Result<(String, Data)> {
-        let delimiter_index = line.find(CRLF)
+        let delimiter_index = line.find(' ')
             .ok_or(Error::new(ErrorKind::InvalidSerializedString))?;
 
         let key = String::from(&line[SET_PREFIX.len()..delimiter_index]);
-        let value = String::from(&line[delimiter_index + 2..line.len() - 2]);
+        let value = String::from(&line[delimiter_index + 1..line.len()]);
 
         Ok((key, Data::try_from(value)?))
     }
@@ -66,7 +66,6 @@ impl Persistable for FileStore {
     fn set(&mut self, key: String, data: Data) -> Result<()> {
         write!(self.file,
                serialize_set_template!(),
-               crlf = CRLF,
                prefix = SET_PREFIX,
                key = key,
                value = data.into_string())?;
@@ -84,16 +83,21 @@ impl Persistable for FileStore {
         Ok(())
     }
 
-    fn load(&self) -> Result<BTreeMap<String, Data>> {
+    fn load(&mut self) -> Result<BTreeMap<String, Data>> {
         let mut btree: BTreeMap<String, Data> = BTreeMap::new();
+        let mut content = String::new();
+        let len = fs::File::open(&self.path)?.read_to_string(&mut content)?;
+        println!("len: {}", len);
+        println!("content: {}", content);
 
-        for line_result in BufReader::new(&self.file).lines() {
-            let line = line_result?;
+        for line in content.lines() {
+            println!("after lines: {}", line);
+
             if line.starts_with(SET_PREFIX) {
-                let (key, value) = Self::extract_set(line)?;
+                let (key, value) = Self::extract_set(String::from(line) + CRLF)?;
                 btree.insert(key, value);
             } else if line.starts_with(REMOVE_PREFIX) {
-                btree.remove(&Self::extract_remove(line)?);
+                btree.remove(&Self::extract_remove(String::from(line) + CRLF)?);
             } else {
                 return Err(Error::new(ErrorKind::InvalidSerializedString));
             }
@@ -121,7 +125,7 @@ impl Persistable for MemoryStore {
         Ok(())
     }
 
-    fn load(&self) -> Result<BTreeMap<String, Data>> {
+    fn load(&mut self) -> Result<BTreeMap<String, Data>> {
         Ok(BTreeMap::new())
     }
 
@@ -166,7 +170,7 @@ mod file_store_tests {
 
     #[test]
     fn test_extract_set_string() {
-        let line = String::from("SETkey\r\n+value\r\n\r\n");
+        let line = String::from("$key +value\r\n");
         let (key, value) = FileStore::extract_set(line).unwrap();
         assert_eq!("key", key);
         assert_eq!(Data::String(String::from("value")), value);
@@ -174,7 +178,7 @@ mod file_store_tests {
 
     #[test]
     fn test_extract_set_int() {
-        let line = String::from("SETkey\r\n:888\r\n\r\n");
+        let line = String::from("$key :888\r\n");
         let (key, value) = FileStore::extract_set(line).unwrap();
         assert_eq!("key", key);
         assert_eq!(Data::Int(888), value);
@@ -182,7 +186,7 @@ mod file_store_tests {
 
     #[test]
     fn test_extract_remove() {
-        let line = String::from("REMOVEkey\r\n");
+        let line = String::from("#key\r\n");
         let key = FileStore::extract_remove(line).unwrap();
         assert_eq!("key", key);
     }
@@ -212,7 +216,7 @@ mod file_store_tests {
 
         let mut content = String::new();
         fs::File::open(path).unwrap().read_to_string(&mut content).unwrap();
-        assert_eq!("SETkey\r\n+value\r\n\r\nSETkey\r\n+value\r\n\r\n", content);
+        assert_eq!("$key +value\r\n$key +value\r\n", content);
         store.clear().unwrap();
     }
 
@@ -255,7 +259,7 @@ mod file_store_tests {
 
         let mut content = String::new();
         fs::File::open(path).unwrap().read_to_string(&mut content).unwrap();
-        assert_eq!("REMOVEkey1\r\nREMOVEkey2\r\n", content);
+        assert_eq!("#key1\r\n#key2\r\n", content);
         store.clear().unwrap();
     }
 
@@ -266,12 +270,7 @@ mod file_store_tests {
         let path = String::from(cdb_path.as_path().to_str().unwrap());
         let mut store = FileStore::new(path.clone()).unwrap();
 
-        store.set(String::from("key1"), Data::String(String::from("value1")))
-            .unwrap();
-        store.set(String::from("key2"), Data::String(String::from("value2")))
-            .unwrap();
-        store.remove(String::from("key1")).unwrap();
-        store.remove(String::from("key3")).unwrap();
+        write!(store.file, "$key +value\r\n");
 
         let tree = store.load().unwrap();
         assert_eq!(1, tree.len());
