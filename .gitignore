@@ -7,4 +7,4 @@
 Cargo.lock
 
 # tests
-/tests/test.cdb
+/tests/test*.cdb

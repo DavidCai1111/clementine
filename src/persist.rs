@@ -1,6 +1,6 @@
 use std::collections::*;
 use std::fs;
-use std::io::{Write, Read};
+use std::io::{Write, BufReader, BufRead};
 use data::*;
 use error::*;
 
@@ -69,7 +69,6 @@ impl Persistable for FileStore {
                prefix = SET_PREFIX,
                key = key,
                value = data.into_string())?;
-        self.file.flush()?;
         Ok(())
     }
 
@@ -79,20 +78,14 @@ impl Persistable for FileStore {
                crlf = CRLF,
                prefix = REMOVE_PREFIX,
                key = key)?;
-        self.file.flush()?;
         Ok(())
     }
 
     fn load(&mut self) -> Result<BTreeMap<String, Data>> {
         let mut btree: BTreeMap<String, Data> = BTreeMap::new();
-        let mut content = String::new();
-        let len = fs::File::open(&self.path)?.read_to_string(&mut content)?;
-        println!("len: {}", len);
-        println!("content: {}", content);
 
-        for line in content.lines() {
-            println!("after lines: {}", line);
-
+        for line in BufReader::new(fs::File::open(&self.path)?).lines() {
+            let line = line?;
             if line.starts_with(SET_PREFIX) {
                 let (key, value) = Self::extract_set(String::from(line) + CRLF)?;
                 btree.insert(key, value);
@@ -107,9 +100,7 @@ impl Persistable for FileStore {
     }
 
     fn clear(&mut self) -> Result<()> {
-        self.file.set_len(0)?;
-        self.file.flush()?;
-        Ok(())
+        Ok(self.file.set_len(0)?)
     }
 }
 
@@ -194,7 +185,7 @@ mod file_store_tests {
     #[test]
     fn test_new() {
         let mut cdb_path = env::current_dir().unwrap();
-        cdb_path.push("tests/test.cdb");
+        cdb_path.push("tests/test_new.cdb");
         let path = String::from(cdb_path.as_path().to_str().unwrap());
         let mut store = FileStore::new(path).unwrap();
         store.clear().unwrap();
@@ -204,7 +195,7 @@ mod file_store_tests {
     #[test]
     fn test_set() {
         let mut cdb_path = env::current_dir().unwrap();
-        cdb_path.push("tests/test.cdb");
+        cdb_path.push("tests/test_set.cdb");
         let path = String::from(cdb_path.as_path().to_str().unwrap());
         let mut store = FileStore::new(path.clone()).unwrap();
         store.clear().unwrap();
@@ -223,7 +214,7 @@ mod file_store_tests {
     #[test]
     fn test_clear() {
         let mut cdb_path = env::current_dir().unwrap();
-        cdb_path.push("tests/test.cdb");
+        cdb_path.push("tests/test_clear.cdb");
         let path = String::from(cdb_path.as_path().to_str().unwrap());
         let mut store = FileStore::new(path.clone()).unwrap();
         store.set(String::from("key"), Data::String(String::from("value")))
@@ -249,7 +240,7 @@ mod file_store_tests {
     #[test]
     fn test_remove() {
         let mut cdb_path = env::current_dir().unwrap();
-        cdb_path.push("tests/test.cdb");
+        cdb_path.push("tests/test_remove.cdb");
         let path = String::from(cdb_path.as_path().to_str().unwrap());
         let mut store = FileStore::new(path.clone()).unwrap();
         store.clear().unwrap();
@@ -266,13 +257,14 @@ mod file_store_tests {
     #[test]
     fn test_load() {
         let mut cdb_path = env::current_dir().unwrap();
-        cdb_path.push("tests/test.cdb");
+        cdb_path.push("tests/test_load.cdb");
         let path = String::from(cdb_path.as_path().to_str().unwrap());
         let mut store = FileStore::new(path.clone()).unwrap();
 
-        write!(store.file, "$key +value\r\n");
+        write!(store.file, "$key +value\r\n").unwrap();
 
         let tree = store.load().unwrap();
         assert_eq!(1, tree.len());
+        store.clear().unwrap();
     }
 }
