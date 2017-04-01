@@ -26,12 +26,20 @@ pub trait Persistable {
 
 #[derive(Debug)]
 pub struct FileStore {
-    pub file: fs::File,
+    path: String,
+    file: fs::File,
 }
 
 impl FileStore {
     pub fn new(path: String) -> Result<FileStore> {
-        Ok(FileStore { file: fs::File::create(path)? })
+        Ok(FileStore {
+            path: path.clone(),
+            file: fs::OpenOptions::new().create(true)
+                .truncate(true)
+                .write(true)
+                .read(true)
+                .open(path)?,
+        })
     }
 }
 
@@ -56,27 +64,30 @@ impl FileStore {
 
 impl Persistable for FileStore {
     fn set(&mut self, key: String, data: Data) -> Result<()> {
-        Ok(write!(self.file,
-                  serialize_set_template!(),
-                  crlf = CRLF,
-                  prefix = SET_PREFIX,
-                  key = key,
-                  value = data.into_string())?)
+        write!(self.file,
+               serialize_set_template!(),
+               crlf = CRLF,
+               prefix = SET_PREFIX,
+               key = key,
+               value = data.into_string())?;
+        self.file.flush()?;
+        Ok(())
     }
 
     fn remove(&mut self, key: String) -> Result<()> {
-        Ok(write!(self.file,
-                  serialize_remove_template!(),
-                  crlf = CRLF,
-                  prefix = REMOVE_PREFIX,
-                  key = key)?)
+        write!(self.file,
+               serialize_remove_template!(),
+               crlf = CRLF,
+               prefix = REMOVE_PREFIX,
+               key = key)?;
+        self.file.flush()?;
+        Ok(())
     }
 
     fn load(&self) -> Result<BTreeMap<String, Data>> {
-        let reader = BufReader::new(&self.file);
         let mut btree: BTreeMap<String, Data> = BTreeMap::new();
 
-        for line_result in reader.lines() {
+        for line_result in BufReader::new(&self.file).lines() {
             let line = line_result?;
             if line.starts_with(SET_PREFIX) {
                 let (key, value) = Self::extract_set(line)?;
@@ -92,7 +103,9 @@ impl Persistable for FileStore {
     }
 
     fn clear(&mut self) -> Result<()> {
-        Ok(self.file.set_len(0)?)
+        self.file.set_len(0)?;
+        self.file.flush()?;
+        Ok(())
     }
 }
 
@@ -179,7 +192,8 @@ mod file_store_tests {
         let mut cdb_path = env::current_dir().unwrap();
         cdb_path.push("tests/test.cdb");
         let path = String::from(cdb_path.as_path().to_str().unwrap());
-        let store = FileStore::new(path).unwrap();
+        let mut store = FileStore::new(path).unwrap();
+        store.clear().unwrap();
         assert!(store.file.metadata().unwrap().is_file());
     }
 
@@ -189,6 +203,8 @@ mod file_store_tests {
         cdb_path.push("tests/test.cdb");
         let path = String::from(cdb_path.as_path().to_str().unwrap());
         let mut store = FileStore::new(path.clone()).unwrap();
+        store.clear().unwrap();
+
         store.set(String::from("key"), Data::String(String::from("value")))
             .unwrap();
         store.set(String::from("key"), Data::String(String::from("value")))
@@ -197,5 +213,67 @@ mod file_store_tests {
         let mut content = String::new();
         fs::File::open(path).unwrap().read_to_string(&mut content).unwrap();
         assert_eq!("SETkey\r\n+value\r\n\r\nSETkey\r\n+value\r\n\r\n", content);
+        store.clear().unwrap();
+    }
+
+    #[test]
+    fn test_clear() {
+        let mut cdb_path = env::current_dir().unwrap();
+        cdb_path.push("tests/test.cdb");
+        let path = String::from(cdb_path.as_path().to_str().unwrap());
+        let mut store = FileStore::new(path.clone()).unwrap();
+        store.set(String::from("key"), Data::String(String::from("value")))
+            .unwrap();
+
+        let mut content = String::new();
+        fs::File::open(path.clone())
+            .unwrap()
+            .read_to_string(&mut content)
+            .unwrap();
+        assert!(content.len() != 0);
+
+        store.clear().unwrap();
+
+        let mut content_after_clear = String::new();
+        fs::File::open(path)
+            .unwrap()
+            .read_to_string(&mut content_after_clear)
+            .unwrap();
+        assert!(content_after_clear.len() == 0);
+    }
+
+    #[test]
+    fn test_remove() {
+        let mut cdb_path = env::current_dir().unwrap();
+        cdb_path.push("tests/test.cdb");
+        let path = String::from(cdb_path.as_path().to_str().unwrap());
+        let mut store = FileStore::new(path.clone()).unwrap();
+        store.clear().unwrap();
+
+        store.remove(String::from("key1")).unwrap();
+        store.remove(String::from("key2")).unwrap();
+
+        let mut content = String::new();
+        fs::File::open(path).unwrap().read_to_string(&mut content).unwrap();
+        assert_eq!("REMOVEkey1\r\nREMOVEkey2\r\n", content);
+        store.clear().unwrap();
+    }
+
+    #[test]
+    fn test_load() {
+        let mut cdb_path = env::current_dir().unwrap();
+        cdb_path.push("tests/test.cdb");
+        let path = String::from(cdb_path.as_path().to_str().unwrap());
+        let mut store = FileStore::new(path.clone()).unwrap();
+
+        store.set(String::from("key1"), Data::String(String::from("value1")))
+            .unwrap();
+        store.set(String::from("key2"), Data::String(String::from("value2")))
+            .unwrap();
+        store.remove(String::from("key1")).unwrap();
+        store.remove(String::from("key3")).unwrap();
+
+        let tree = store.load().unwrap();
+        assert_eq!(1, tree.len());
     }
 }

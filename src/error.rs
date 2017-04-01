@@ -62,7 +62,8 @@ impl From<ErrorKind> for Error {
 }
 
 impl From<io::Error> for Error {
-    fn from(_: io::Error) -> Error {
+    fn from(e: io::Error) -> Error {
+        println!("{:?}", e);
         Error { kind: ErrorKind::IOError }
     }
 }
