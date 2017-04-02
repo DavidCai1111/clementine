@@ -4,9 +4,10 @@ use error::*;
 use persist::*;
 
 pub struct Database {
+    pub flushes: i32,
+
     txn_mut: RwLock<Transaction>,
     closed: bool,
-    persist_store: Box<Persistable>,
 }
 
 impl Database {
@@ -17,9 +18,9 @@ impl Database {
         };
 
         Ok(Database {
-            txn_mut: RwLock::new(Transaction::new(persist_store.load()?)),
+            txn_mut: RwLock::new(Transaction::new(persist_store.load()?, persist_store)),
             closed: false,
-            persist_store: persist_store,
+            flushes: 0,
         })
     }
 
@@ -47,6 +48,10 @@ impl Database {
         }
         store.commit();
         Ok(())
+    }
+
+    pub fn save(&self) -> Result<()> {
+        Ok(self.txn_mut.write()?.save()?)
     }
 
     pub fn close(&mut self) -> Result<()> {

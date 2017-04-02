@@ -1,6 +1,8 @@
 use std::collections::*;
 use data::*;
 use std::ops::Deref;
+use persist::Persistable;
+use error::*;
 
 #[derive(Debug)]
 struct Item {
@@ -32,20 +34,31 @@ pub trait WriteTransaction<K>: ReadTransaction<K>
     fn clear(&mut self);
 }
 
-#[derive(Debug)]
 pub struct Transaction {
     store: BTreeMap<String, Data>,
     backup_store: Option<BTreeMap<String, Data>>,
+    persist_store: Box<Persistable>,
     rollback_items: Vec<Item>,
 }
 
 impl Transaction {
-    pub fn new(store: BTreeMap<String, Data>) -> Transaction {
+    pub fn new(store: BTreeMap<String, Data>, persist: Box<Persistable>) -> Transaction {
         Transaction {
             store: store,
             backup_store: None,
+            persist_store: persist,
             rollback_items: Vec::new(),
         }
+    }
+
+    pub fn save(&mut self) -> Result<()> {
+        self.persist_store.clear()?;
+
+        for (key, value) in &self.store {
+            self.persist_store.set(key.clone(), value.clone())?;
+        }
+
+        Ok(())
     }
 
     pub fn commit(&mut self) {
@@ -54,7 +67,7 @@ impl Transaction {
     }
 
     pub fn rollback(&mut self) {
-        if self.backup_store.is_some() {
+        if self.is_cleared() {
             self.store = self.backup_store.clone().unwrap();
             self.backup_store = None;
         }
@@ -65,6 +78,10 @@ impl Transaction {
                 self.store.insert(item.key.clone(), item.value.clone().unwrap());
             }
         }
+    }
+
+    fn is_cleared(&self) -> bool {
+        self.backup_store.is_some()
     }
 }
 
