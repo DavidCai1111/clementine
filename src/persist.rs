@@ -4,11 +4,12 @@ use std::io::{Write, BufReader, BufRead};
 use data::*;
 use error::*;
 
-static CRLF: &'static str = "\r\n";
-static SET_PREFIX: &'static str = "$";
-static REMOVE_PREFIX: &'static str = "#";
+const CRLF: &'static str = "\r\n";
+const SPACE: &'static str = " ";
+const SET_PREFIX: &'static str = "$";
+const REMOVE_PREFIX: &'static str = "#";
 
-macro_rules! serialize_set_template { () => ("{prefix}{key} {value}") }
+macro_rules! serialize_set_template { () => ("{prefix}{key}{space}{value}") }
 macro_rules! serialize_remove_template { () => ("{prefix}{key}{crlf}") }
 
 #[derive(Debug)]
@@ -45,7 +46,7 @@ impl FileStore {
 
 impl FileStore {
     fn extract_set(line: String) -> Result<(String, Data)> {
-        let delimiter_index = line.find(' ')
+        let delimiter_index = line.find(SPACE)
             .ok_or(Error::new(ErrorKind::InvalidSerializedString))?;
 
         let key = String::from(&line[SET_PREFIX.len()..delimiter_index]);
@@ -64,33 +65,32 @@ impl FileStore {
 
 impl Persistable for FileStore {
     fn set(&mut self, key: String, data: Data) -> Result<()> {
-        write!(self.file,
-               serialize_set_template!(),
-               prefix = SET_PREFIX,
-               key = key,
-               value = data.into_string())?;
-        Ok(())
+        Ok(write!(self.file,
+                  serialize_set_template!(),
+                  prefix = SET_PREFIX,
+                  key = key,
+                  space = SPACE,
+                  value = data.into_string())?)
     }
 
     fn remove(&mut self, key: String) -> Result<()> {
-        write!(self.file,
-               serialize_remove_template!(),
-               crlf = CRLF,
-               prefix = REMOVE_PREFIX,
-               key = key)?;
-        Ok(())
+        Ok(write!(self.file,
+                  serialize_remove_template!(),
+                  crlf = CRLF,
+                  prefix = REMOVE_PREFIX,
+                  key = key)?)
     }
 
     fn load(&mut self) -> Result<BTreeMap<String, Data>> {
         let mut btree: BTreeMap<String, Data> = BTreeMap::new();
 
         for line in BufReader::new(fs::File::open(&self.path)?).lines() {
-            let line = line?;
+            let line = line? + CRLF;
             if line.starts_with(SET_PREFIX) {
-                let (key, value) = Self::extract_set(String::from(line) + CRLF)?;
+                let (key, value) = Self::extract_set(String::from(line))?;
                 btree.insert(key, value);
             } else if line.starts_with(REMOVE_PREFIX) {
-                btree.remove(&Self::extract_remove(String::from(line) + CRLF)?);
+                btree.remove(&Self::extract_remove(String::from(line))?);
             } else {
                 return Err(Error::new(ErrorKind::InvalidSerializedString));
             }

@@ -5,7 +5,6 @@ use persist::*;
 
 pub struct Database {
     pub flushes: i32,
-
     txn_mut: RwLock<Transaction>,
     closed: bool,
 }
@@ -18,9 +17,9 @@ impl Database {
         };
 
         Ok(Database {
+            flushes: 0,
             txn_mut: RwLock::new(Transaction::new(persist_store.load()?, persist_store)),
             closed: false,
-            flushes: 0,
         })
     }
 
@@ -50,8 +49,10 @@ impl Database {
         Ok(())
     }
 
-    pub fn save(&self) -> Result<()> {
-        Ok(self.txn_mut.write()?.save()?)
+    pub fn save(&mut self) -> Result<()> {
+        self.txn_mut.write()?.save()?;
+        self.flushes += 1;
+        Ok(())
     }
 
     pub fn close(&mut self) -> Result<()> {

@@ -1,8 +1,8 @@
 use error::*;
 
-static CRLF: &'static str = "\r\n";
-static STRING_PREFIX: &'static str = "+";
-static INT_PREFIX: &'static str = ":";
+const CRLF: &'static str = "\r\n";
+const STRING_PREFIX: &'static str = "+";
+const INT_PREFIX: &'static str = ":";
 
 macro_rules! serialize_template { () => ("{prefix}{value}{crlf}") }
 
