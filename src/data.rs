@@ -1,8 +1,12 @@
+extern crate rustc_serialize;
+
 use error::*;
+use self::rustc_serialize::json::{Json, encode};
 
 const CRLF: &'static str = "\r\n";
 const STRING_PREFIX: &'static str = "+";
 const INT_PREFIX: &'static str = ":";
+const JSON_PERFIX: &'static str = "?";
 
 macro_rules! serialize_template { () => ("{prefix}{value}{crlf}") }
 
@@ -13,11 +17,11 @@ pub trait Serializable: Clone
     fn into_string(self) -> String;
 }
 
-// TODO: JSON support: https://github.com/serde-rs/json .
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     String(String),
     Int(i64),
+    JSON(Json),
 }
 
 impl Data {
@@ -27,6 +31,10 @@ impl Data {
 
     fn from_int(s: String) -> Result<Data> {
         Ok(Data::Int(s[1..s.len() - 2].parse::<i64>()?))
+    }
+
+    fn from_json(s: String) -> Result<Data> {
+        Ok(Data::JSON(Json::from_str(&s[1..s.len() - 2])?))
     }
 
     fn serialize_string(s: String) -> String {
@@ -42,6 +50,10 @@ impl Data {
                 value = i,
                 crlf = CRLF)
     }
+
+    fn serialize_json(json: Json) -> String {
+        encode(&json).unwrap()
+    }
 }
 
 impl Serializable for Data {
@@ -49,6 +61,7 @@ impl Serializable for Data {
         match self {
             Data::String(string) => Self::serialize_string(string),
             Data::Int(int) => Self::serialize_int(int),
+            Data::JSON(json) => Self::serialize_json(json),
         }
     }
 
@@ -61,6 +74,8 @@ impl Serializable for Data {
             Ok(Self::from_string(string)?)
         } else if string.starts_with(INT_PREFIX) {
             Ok(Self::from_int(string)?)
+        } else if string.starts_with(JSON_PERFIX) {
+            Ok(Self::from_json(string)?)
         } else {
             Err(Error::new(ErrorKind::InvalidSerializedString))
         }

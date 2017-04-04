@@ -7,4 +7,4 @@ repository = "https://github.com/DavidCai1993/clementine"
 license = "MIT"
 
 [dependencies]
-serde_json = "0.9"
+rustc-serialize = "0.3"

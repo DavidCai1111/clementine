@@ -1,9 +1,12 @@
+extern crate rustc_serialize;
+
 use std::error;
 use std::fmt;
 use std::result;
 use std::io;
 use std::sync;
 use std::num;
+use self::rustc_serialize::json::BuilderError;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -16,6 +19,7 @@ pub enum ErrorKind {
     ItemNotFound,
     // Data errors.
     InvalidSerializedString,
+    JsonParseError,
     // IO errors
     IOError,
     RWLockPoisonError,
@@ -39,6 +43,7 @@ impl Error {
             ErrorKind::InvalidSerializedString => "invalid serialized string",
             ErrorKind::IOError => "io error",
             ErrorKind::RWLockPoisonError => "rwlock poison error",
+            ErrorKind::JsonParseError => "json parse error",
         }
     }
 }
@@ -76,5 +81,11 @@ impl<T> From<sync::PoisonError<T>> for Error {
 impl From<num::ParseIntError> for Error {
     fn from(_: num::ParseIntError) -> Error {
         Error { kind: ErrorKind::InvalidSerializedString }
+    }
+}
+
+impl From<BuilderError> for Error {
+    fn from(_: BuilderError) -> Error {
+        Error { kind: ErrorKind::JsonParseError }
     }
 }
