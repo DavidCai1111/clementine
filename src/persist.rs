@@ -159,6 +159,12 @@ mod file_store_tests {
     use std::env;
     use std::io::Read;
 
+    fn get_cdb_path(name: &str) -> String {
+        let mut cdb_path = env::current_dir().unwrap();
+        cdb_path.push(String::from("tests/") + name);
+        String::from(cdb_path.as_path().to_str().unwrap())
+    }
+
     #[test]
     fn test_extract_set_string() {
         let line = String::from("$key +value\r\n");
@@ -184,20 +190,14 @@ mod file_store_tests {
 
     #[test]
     fn test_new() {
-        let mut cdb_path = env::current_dir().unwrap();
-        cdb_path.push("tests/test_new.cdb");
-        let path = String::from(cdb_path.as_path().to_str().unwrap());
-        let mut store = FileStore::new(path).unwrap();
+        let mut store = FileStore::new(get_cdb_path("test_new.cdb")).unwrap();
         store.clear().unwrap();
         assert!(store.file.metadata().unwrap().is_file());
     }
 
     #[test]
     fn test_set() {
-        let mut cdb_path = env::current_dir().unwrap();
-        cdb_path.push("tests/test_set.cdb");
-        let path = String::from(cdb_path.as_path().to_str().unwrap());
-        let mut store = FileStore::new(path.clone()).unwrap();
+        let mut store = FileStore::new(get_cdb_path("test_set.cdb")).unwrap();
         store.clear().unwrap();
 
         store.set(String::from("key"), Data::String(String::from("value")))
@@ -206,22 +206,22 @@ mod file_store_tests {
             .unwrap();
 
         let mut content = String::new();
-        fs::File::open(path).unwrap().read_to_string(&mut content).unwrap();
+        fs::File::open(get_cdb_path("test_set.cdb"))
+            .unwrap()
+            .read_to_string(&mut content)
+            .unwrap();
         assert_eq!("$key +value\r\n$key +value\r\n", content);
         store.clear().unwrap();
     }
 
     #[test]
     fn test_clear() {
-        let mut cdb_path = env::current_dir().unwrap();
-        cdb_path.push("tests/test_clear.cdb");
-        let path = String::from(cdb_path.as_path().to_str().unwrap());
-        let mut store = FileStore::new(path.clone()).unwrap();
+        let mut store = FileStore::new(get_cdb_path("test_clear.cdb")).unwrap();
         store.set(String::from("key"), Data::String(String::from("value")))
             .unwrap();
 
         let mut content = String::new();
-        fs::File::open(path.clone())
+        fs::File::open(get_cdb_path("test_clear.cdb"))
             .unwrap()
             .read_to_string(&mut content)
             .unwrap();
@@ -230,7 +230,7 @@ mod file_store_tests {
         store.clear().unwrap();
 
         let mut content_after_clear = String::new();
-        fs::File::open(path)
+        fs::File::open(get_cdb_path("test_clear.cdb"))
             .unwrap()
             .read_to_string(&mut content_after_clear)
             .unwrap();
@@ -239,28 +239,24 @@ mod file_store_tests {
 
     #[test]
     fn test_remove() {
-        let mut cdb_path = env::current_dir().unwrap();
-        cdb_path.push("tests/test_remove.cdb");
-        let path = String::from(cdb_path.as_path().to_str().unwrap());
-        let mut store = FileStore::new(path.clone()).unwrap();
+        let mut store = FileStore::new(get_cdb_path("test_remove.cdb")).unwrap();
         store.clear().unwrap();
 
         store.remove(String::from("key1")).unwrap();
         store.remove(String::from("key2")).unwrap();
 
         let mut content = String::new();
-        fs::File::open(path).unwrap().read_to_string(&mut content).unwrap();
+        fs::File::open(get_cdb_path("test_remove.cdb"))
+            .unwrap()
+            .read_to_string(&mut content)
+            .unwrap();
         assert_eq!("#key1\r\n#key2\r\n", content);
         store.clear().unwrap();
     }
 
     #[test]
     fn test_load() {
-        let mut cdb_path = env::current_dir().unwrap();
-        cdb_path.push("tests/test_load.cdb");
-        let path = String::from(cdb_path.as_path().to_str().unwrap());
-        let mut store = FileStore::new(path.clone()).unwrap();
-
+        let mut store = FileStore::new(get_cdb_path("test_load.cdb")).unwrap();
         write!(store.file, "$key +value\r\n").unwrap();
 
         let tree = store.load().unwrap();
