@@ -1,7 +1,5 @@
-extern crate rustc_serialize;
-
 use error::*;
-use self::rustc_serialize::json::{Json, encode};
+use serde_json;
 
 const CRLF: &'static str = "\r\n";
 const STRING_PREFIX: &'static str = "+";
@@ -21,7 +19,7 @@ pub trait Serializable: Clone
 pub enum Data {
     String(String),
     Int(i64),
-    JSON(Json),
+    JSON(serde_json::Value),
 }
 
 impl Data {
@@ -34,7 +32,7 @@ impl Data {
     }
 
     fn from_json(s: String) -> Result<Data> {
-        Ok(Data::JSON(Json::from_str(&s[1..s.len() - 2])?))
+        Ok(Data::JSON(serde_json::from_str(&s[1..s.len() - 2])?))
     }
 
     fn serialize_string(s: String) -> String {
@@ -51,8 +49,11 @@ impl Data {
                 crlf = CRLF)
     }
 
-    fn serialize_json(json: Json) -> String {
-        encode(&json).unwrap()
+    fn serialize_json(json: serde_json::Value) -> String {
+        format!(serialize_template!(),
+                prefix = JSON_PERFIX,
+                value = serde_json::to_string(&json).unwrap(),
+                crlf = CRLF)
     }
 }
 
@@ -115,6 +116,12 @@ mod tests {
     }
 
     #[test]
+    fn test_serialize_json() {
+        assert_eq!("?{\"age\":18,\"name\":\"David\"}\r\n",
+                   Data::serialize_json(json!({"name": "David","age": 18})));
+    }
+
+    #[test]
     fn test_serializble_into() {
         assert_eq!("+666\r\n", Data::String(String::from("666")).into_string());
         assert_eq!(":666\r\n", Data::Int(666).into_string());
@@ -137,5 +144,11 @@ mod tests {
     fn test_try_from_int() {
         assert_eq!(Data::Int(666),
                    Data::try_from(String::from(":666\r\n")).unwrap());
+    }
+
+    #[test]
+    fn test_try_from_json() {
+        assert_eq!(Data::JSON(json!({"name": "David","age": 18})),
+                   Data::try_from(String::from("?{\"age\":18,\"name\":\"David\"}\r\n")).unwrap());
     }
 }

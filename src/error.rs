@@ -1,12 +1,10 @@
-extern crate rustc_serialize;
-
 use std::error;
 use std::fmt;
 use std::result;
 use std::io;
 use std::sync;
 use std::num;
-use self::rustc_serialize::json::BuilderError;
+use serde_json;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -84,8 +82,8 @@ impl From<num::ParseIntError> for Error {
     }
 }
 
-impl From<BuilderError> for Error {
-    fn from(_: BuilderError) -> Error {
+impl From<serde_json::Error> for Error {
+    fn from(_: serde_json::Error) -> Error {
         Error { kind: ErrorKind::JsonParseError }
     }
 }
