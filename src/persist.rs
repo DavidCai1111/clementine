@@ -13,6 +13,13 @@ macro_rules! serialize_set_template { () => ("{prefix}{key}{space}{value}") }
 macro_rules! serialize_remove_template { () => ("{prefix}{key}{crlf}") }
 
 #[derive(Debug)]
+pub enum SyncPolicy {
+    Never,
+    Second(i64),
+    Always,
+}
+
+#[derive(Debug)]
 pub enum PersistType {
     Memory,
     File(String),

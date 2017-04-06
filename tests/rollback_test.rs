@@ -1,10 +1,10 @@
 extern crate clementine;
 
-use clementine::{Database, Data, Result, Error, ErrorKind, PersistType};
+use clementine::{Database, Data, Result, Error, ErrorKind, Config};
 
 #[test]
 fn test_rollback_update() {
-    let db = &Database::new(PersistType::Memory).unwrap();
+    let db = &Database::new(Config::default()).unwrap();
     let update_ok_result = db.update(|txn| -> Result<()> {
         txn.update("1", Data::Int(1));
         Ok(())
@@ -26,7 +26,7 @@ fn test_rollback_update() {
 
 #[test]
 fn test_rollback_remove() {
-    let db = &Database::new(PersistType::Memory).unwrap();
+    let db = &Database::new(Config::default()).unwrap();
     let update_ok_result = db.update(|txn| -> Result<()> {
         txn.update("1", Data::Int(1));
         Ok(())
@@ -54,7 +54,7 @@ fn test_rollback_remove() {
 
 #[test]
 fn test_rollback_remove_all() {
-    let db = &Database::new(PersistType::Memory).unwrap();
+    let db = &Database::new(Config::default()).unwrap();
     let update_result = db.update(|txn| -> Result<()> {
         txn.update("1", Data::Int(1));
         txn.update("2", Data::Int(2));

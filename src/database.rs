@@ -1,17 +1,34 @@
 use std::sync::*;
+use std::default::*;
 use transaction::*;
 use error::*;
 use persist::*;
 
 pub struct Database {
     pub flushes: i32,
+
     txn_mut: RwLock<Transaction>,
+    sync_policy: SyncPolicy,
     closed: bool,
 }
 
+pub struct Config {
+    persist_type: PersistType,
+    sync_policy: SyncPolicy,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            persist_type: PersistType::Memory,
+            sync_policy: SyncPolicy::Never,
+        }
+    }
+}
+
 impl Database {
-    pub fn new(persist_type: PersistType) -> Result<Database> {
-        let mut persist_store: Box<Persistable> = match persist_type {
+    pub fn new(config: Config) -> Result<Database> {
+        let mut persist_store: Box<Persistable> = match config.persist_type {
             PersistType::Memory => Box::new(MemoryStore::default()),
             PersistType::File(path) => Box::new(FileStore::new(path)?),
         };
@@ -19,6 +36,7 @@ impl Database {
         Ok(Database {
             flushes: 0,
             txn_mut: RwLock::new(Transaction::new(persist_store.load()?, persist_store)),
+            sync_policy: config.sync_policy,
             closed: false,
         })
     }
@@ -79,13 +97,13 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let db = Database::new(PersistType::Memory).unwrap();
+        let db = Database::new(Config::default()).unwrap();
         assert_eq!(false, db.closed);
     }
 
     #[test]
     fn test_close() {
-        let mut db = Database::new(PersistType::Memory).unwrap();
+        let mut db = Database::new(Config::default()).unwrap();
         assert!(db.close().is_ok());
         assert!(db.close().is_err());
         assert!(db.close().is_err());

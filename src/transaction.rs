@@ -1,7 +1,7 @@
 use std::collections::*;
 use data::*;
 use std::ops::Deref;
-use persist::Persistable;
+use persist::{Persistable, SyncPolicy};
 use error::*;
 
 #[derive(Debug)]

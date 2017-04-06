@@ -52,7 +52,7 @@ impl Data {
     fn serialize_json(json: serde_json::Value) -> String {
         format!(serialize_template!(),
                 prefix = JSON_PERFIX,
-                value = serde_json::to_string(&json).unwrap(),
+                value = json.to_string(),
                 crlf = CRLF)
     }
 }
