@@ -60,9 +60,17 @@ impl Database {
         if self.closed {
             return Err(Error::new(ErrorKind::DataBaseClosed));
         }
+
+        // If transaction is failed, do the rollback, else do the
+        // sync job if specified.
         if f(&mut *store).is_err() {
             store.rollback();
+        } else {
+            if self.sync_policy == SyncPolicy::Always {
+                store.save()?;
+            }
         }
+
         store.commit();
         Ok(())
     }

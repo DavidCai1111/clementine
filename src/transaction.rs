@@ -35,8 +35,8 @@ pub trait WriteTransaction<K>: ReadTransaction<K>
 
 pub struct Transaction {
     store: BTreeMap<String, Data>,
-    backup_store: Option<BTreeMap<String, Data>>,
     persist_store: Box<Persistable>,
+    backup_store: Option<BTreeMap<String, Data>>,
     rollback_items: Vec<Item>,
 }
 

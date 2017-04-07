@@ -12,6 +12,7 @@ pub type Result<T> = result::Result<T, Error>;
 pub enum ErrorKind {
     // Database errors.
     DataBaseClosed,
+    InvalidSyncDuration,
     // Transaction errors.
     TransactionNotWritable,
     ItemNotFound,
@@ -36,6 +37,7 @@ impl Error {
     pub fn message(&self) -> &str {
         match self.kind {
             ErrorKind::DataBaseClosed => "database already closed",
+            ErrorKind::InvalidSyncDuration => "sync duration must > 5 second",
             ErrorKind::TransactionNotWritable => "transaction is not writable",
             ErrorKind::ItemNotFound => "item not found",
             ErrorKind::InvalidSerializedString => "invalid serialized string",
