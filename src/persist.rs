@@ -12,7 +12,7 @@ const REMOVE_PREFIX: &'static str = "#";
 macro_rules! serialize_set_template { () => ("{prefix}{key}{space}{value}") }
 macro_rules! serialize_remove_template { () => ("{prefix}{key}{crlf}") }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SyncPolicy {
     Never,
     Second(i64),

@@ -1,7 +1,7 @@
 use std::collections::*;
 use data::*;
 use std::ops::Deref;
-use persist::{Persistable, SyncPolicy};
+use persist::Persistable;
 use error::*;
 
 #[derive(Debug)]
@@ -20,7 +20,6 @@ pub trait ReadTransaction<K>
     where K: Into<String> + Ord + Clone
 {
     fn get(&self, key: K) -> Option<&Data>;
-    fn get_mut(&mut self, key: K) -> Option<&mut Data>;
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool;
     fn contains_key(&self, key: K) -> bool;
@@ -97,10 +96,6 @@ impl<K> ReadTransaction<K> for Transaction
 {
     fn get(&self, key: K) -> Option<&Data> {
         self.store.get(&key.into())
-    }
-
-    fn get_mut(&mut self, key: K) -> Option<&mut Data> {
-        self.store.get_mut(&key.into())
     }
 
     fn len(&self) -> usize {

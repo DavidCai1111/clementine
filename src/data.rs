@@ -8,13 +8,6 @@ const JSON_PERFIX: &'static str = "?";
 
 macro_rules! serialize_template { () => ("{prefix}{value}{crlf}") }
 
-pub trait Serializable: Clone
-    where Self: Sized
-{
-    fn try_from(String) -> Result<Self>;
-    fn into_string(self) -> String;
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     String(String),
@@ -23,6 +16,30 @@ pub enum Data {
 }
 
 impl Data {
+    pub fn into_string(self) -> String {
+        match self {
+            Data::String(string) => Self::serialize_string(string),
+            Data::Int(int) => Self::serialize_int(int),
+            Data::JSON(json) => Self::serialize_json(json),
+        }
+    }
+
+    pub fn try_from(string: String) -> Result<Data> {
+        if string.len() < 2 || !string.ends_with(CRLF) {
+            return Err(Error::new(ErrorKind::InvalidSerializedString));
+        }
+
+        if string.starts_with(STRING_PREFIX) {
+            Ok(Self::from_string(string)?)
+        } else if string.starts_with(INT_PREFIX) {
+            Ok(Self::from_int(string)?)
+        } else if string.starts_with(JSON_PERFIX) {
+            Ok(Self::from_json(string)?)
+        } else {
+            Err(Error::new(ErrorKind::InvalidSerializedString))
+        }
+    }
+
     fn from_string(s: String) -> Result<Data> {
         Ok(Data::String(String::from(&s[1..s.len() - 2])))
     }
@@ -54,32 +71,6 @@ impl Data {
                 prefix = JSON_PERFIX,
                 value = json.to_string(),
                 crlf = CRLF)
-    }
-}
-
-impl Serializable for Data {
-    fn into_string(self) -> String {
-        match self {
-            Data::String(string) => Self::serialize_string(string),
-            Data::Int(int) => Self::serialize_int(int),
-            Data::JSON(json) => Self::serialize_json(json),
-        }
-    }
-
-    fn try_from(string: String) -> Result<Data> {
-        if string.len() < 2 || !string.ends_with(CRLF) {
-            return Err(Error::new(ErrorKind::InvalidSerializedString));
-        }
-
-        if string.starts_with(STRING_PREFIX) {
-            Ok(Self::from_string(string)?)
-        } else if string.starts_with(INT_PREFIX) {
-            Ok(Self::from_int(string)?)
-        } else if string.starts_with(JSON_PERFIX) {
-            Ok(Self::from_json(string)?)
-        } else {
-            Err(Error::new(ErrorKind::InvalidSerializedString))
-        }
     }
 }
 

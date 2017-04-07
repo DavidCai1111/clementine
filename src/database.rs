@@ -99,6 +99,7 @@ mod tests {
     fn test_new() {
         let db = Database::new(Config::default()).unwrap();
         assert_eq!(false, db.closed);
+        assert_eq!(SyncPolicy::Never, db.sync_policy)
     }
 
     #[test]
