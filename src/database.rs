@@ -34,11 +34,11 @@ impl Database {
         };
 
         Ok(Database {
-            flushes: 0,
-            txn_mut: RwLock::new(Transaction::new(persist_store.load()?, persist_store)),
-            sync_policy: config.sync_policy,
-            closed: false,
-        })
+               flushes: 0,
+               txn_mut: RwLock::new(Transaction::new(persist_store.load()?, persist_store)),
+               sync_policy: config.sync_policy,
+               closed: false,
+           })
     }
 
     pub fn read<F, K>(&self, f: F) -> Result<()>

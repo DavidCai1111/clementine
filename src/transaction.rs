@@ -74,7 +74,8 @@ impl Transaction {
             if item.value.is_none() {
                 self.store.remove(&item.key.clone());
             } else {
-                self.store.insert(item.key.clone(), item.value.clone().unwrap());
+                self.store
+                    .insert(item.key.clone(), item.value.clone().unwrap());
             }
         }
     }

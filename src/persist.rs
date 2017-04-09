@@ -15,7 +15,6 @@ macro_rules! serialize_remove_template { () => ("{prefix}{key}{crlf}") }
 #[derive(Debug, PartialEq)]
 pub enum SyncPolicy {
     Never,
-    Second(i64),
     Always,
 }
 
@@ -41,13 +40,14 @@ pub struct FileStore {
 impl FileStore {
     pub fn new(path: String) -> Result<FileStore> {
         Ok(FileStore {
-            path: path.clone(),
-            file: fs::OpenOptions::new().create(true)
-                .truncate(true)
-                .write(true)
-                .read(true)
-                .open(path)?,
-        })
+               path: path.clone(),
+               file: fs::OpenOptions::new()
+                   .create(true)
+                   .truncate(true)
+                   .write(true)
+                   .read(true)
+                   .open(path)?,
+           })
     }
 }
 
@@ -207,9 +207,11 @@ mod file_store_tests {
         let mut store = FileStore::new(get_cdb_path("test_set.cdb")).unwrap();
         store.clear().unwrap();
 
-        store.set(String::from("key"), Data::String(String::from("value")))
+        store
+            .set(String::from("key"), Data::String(String::from("value")))
             .unwrap();
-        store.set(String::from("key"), Data::String(String::from("value")))
+        store
+            .set(String::from("key"), Data::String(String::from("value")))
             .unwrap();
 
         let mut content = String::new();
@@ -224,7 +226,8 @@ mod file_store_tests {
     #[test]
     fn test_clear() {
         let mut store = FileStore::new(get_cdb_path("test_clear.cdb")).unwrap();
-        store.set(String::from("key"), Data::String(String::from("value")))
+        store
+            .set(String::from("key"), Data::String(String::from("value")))
             .unwrap();
 
         let mut content = String::new();
