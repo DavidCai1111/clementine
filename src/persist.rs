@@ -5,12 +5,11 @@ use data::*;
 use error::*;
 
 const CRLF: &'static str = "\r\n";
-const SPACE: &'static str = " ";
 const SET_PREFIX: &'static str = "$";
 const REMOVE_PREFIX: &'static str = "#";
 
-macro_rules! serialize_set_template { () => ("{prefix}{key}{space}{value}") }
-macro_rules! serialize_remove_template { () => ("{prefix}{key}{crlf}") }
+macro_rules! serialize_set_template { () => ("{prefix}{key_len}{crlf}{val_len}{crlf}{key}{value}") }
+macro_rules! serialize_remove_template { () => ("{prefix}{key_len}{crlf}{key}") }
 
 #[derive(Debug, PartialEq)]
 pub enum SyncPolicy {
@@ -53,13 +52,32 @@ impl FileStore {
 
 impl FileStore {
     fn extract_set(line: String) -> Result<(String, Data)> {
-        let delimiter_index = line.find(SPACE)
+        let mut pos = SET_PREFIX.len();
+        let key_len_index = line[pos..]
+            .find(CRLF)
             .ok_or(Error::new(ErrorKind::InvalidSerializedString))?;
+        let key_len: usize = String::from(&line[pos..key_len_index]).parse()?;
 
-        let key = String::from(&line[SET_PREFIX.len()..delimiter_index]);
-        let value = String::from(&line[delimiter_index + 1..line.len()]);
+        pos = key_len_index + CRLF.len();
 
-        Ok((key, Data::try_from(value)?))
+        let val_len_index = line[pos..]
+            .find(CRLF)
+            .ok_or(Error::new(ErrorKind::InvalidSerializedString))?;
+        let val_len: usize = String::from(&line[pos..val_len_index]).parse()?;
+
+        pos = val_len + CRLF.len();
+
+        let key_end_index = pos + key_len;
+        let val_end_index = key_end_index + val_len;
+
+        if key_end_index > line.len() || val_end_index > line.len() {
+            return Err(Error::new(ErrorKind::InvalidSerializedString));
+        }
+
+        let key = String::from(&line[pos..key_end_index]);
+        let val = String::from(&line[key_end_index..val_end_index]);
+
+        Ok((key, Data::try_from(val)?))
     }
 
     fn extract_remove(line: String) -> Result<String> {
@@ -72,19 +90,23 @@ impl FileStore {
 
 impl Persistable for FileStore {
     fn set(&mut self, key: String, data: Data) -> Result<()> {
+        let value = data.into_string();
         Ok(write!(self.file,
                   serialize_set_template!(),
                   prefix = SET_PREFIX,
+                  key_len = key.len(),
+                  val_len = value.len(),
+                  crlf = CRLF,
                   key = key,
-                  space = SPACE,
-                  value = data.into_string())?)
+                  value = value)?)
     }
 
     fn remove(&mut self, key: String) -> Result<()> {
         Ok(write!(self.file,
                   serialize_remove_template!(),
-                  crlf = CRLF,
                   prefix = REMOVE_PREFIX,
+                  key_len = key.len(),
+                  crlf = CRLF,
                   key = key)?)
     }
 
