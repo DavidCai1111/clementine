@@ -4,6 +4,7 @@ use std::result;
 use std::io;
 use std::sync;
 use std::num;
+use std::string;
 use serde_json;
 
 pub type Result<T> = result::Result<T, Error>;
@@ -87,5 +88,11 @@ impl From<num::ParseIntError> for Error {
 impl From<serde_json::Error> for Error {
     fn from(_: serde_json::Error) -> Error {
         Error { kind: ErrorKind::JsonParseError }
+    }
+}
+
+impl From<string::FromUtf8Error> for Error {
+    fn from(_: string::FromUtf8Error) -> Error {
+        Error { kind: ErrorKind::InvalidSerializedString }
     }
 }

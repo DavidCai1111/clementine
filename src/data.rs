@@ -76,8 +76,6 @@ impl Data {
 
 #[cfg(test)]
 mod tests {
-
-
     use super::*;
 
     #[test]

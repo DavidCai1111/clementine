@@ -1,14 +1,16 @@
 use std::collections::*;
 use std::fs;
-use std::io::{Write, BufReader, BufRead};
+use std::io::{Write, BufReader, Read};
 use data::*;
 use error::*;
 
+const CR: &'static str = "\r";
+const LF: &'static str = "\n";
 const CRLF: &'static str = "\r\n";
 const SET_PREFIX: &'static str = "$";
 const REMOVE_PREFIX: &'static str = "#";
 
-macro_rules! serialize_set_template { () => ("{prefix}{key_len}{crlf}{val_len}{crlf}{key}{value}") }
+macro_rules! serialize_set_template { () => ("{prefix}{key_len}{crlf}{key}{val_len}{crlf}{value}") }
 macro_rules! serialize_remove_template { () => ("{prefix}{key_len}{crlf}{key}") }
 
 #[derive(Debug, PartialEq)]
@@ -50,42 +52,18 @@ impl FileStore {
     }
 }
 
-impl FileStore {
-    fn extract_set(line: String) -> Result<(String, Data)> {
-        let mut pos = SET_PREFIX.len();
-        let key_len_index = line[pos..]
-            .find(CRLF)
-            .ok_or(Error::new(ErrorKind::InvalidSerializedString))?;
-        let key_len: usize = String::from(&line[pos..key_len_index]).parse()?;
-
-        pos = key_len_index + CRLF.len();
-
-        let val_len_index = line[pos..]
-            .find(CRLF)
-            .ok_or(Error::new(ErrorKind::InvalidSerializedString))?;
-        let val_len: usize = String::from(&line[pos..val_len_index]).parse()?;
-
-        pos = val_len + CRLF.len();
-
-        let key_end_index = pos + key_len;
-        let val_end_index = key_end_index + val_len;
-
-        if key_end_index > line.len() || val_end_index > line.len() {
-            return Err(Error::new(ErrorKind::InvalidSerializedString));
-        }
-
-        let key = String::from(&line[pos..key_end_index]);
-        let val = String::from(&line[key_end_index..val_end_index]);
-
-        Ok((key, Data::try_from(val)?))
-    }
-
-    fn extract_remove(line: String) -> Result<String> {
-        let delimiter_index = line.find(CRLF)
-            .ok_or(Error::new(ErrorKind::InvalidSerializedString))?;
-
-        Ok(String::from(&line[REMOVE_PREFIX.len()..delimiter_index]))
-    }
+#[derive(Debug, PartialEq)]
+enum LoadState {
+    Empty,
+    BeforeSetKeyCR,
+    BeforeSetKeyLF,
+    GetSetKey(usize),
+    BeforeSetValCR,
+    BeforeSetValLF,
+    GetSetVal(usize),
+    BeforeRemoveKeyCR,
+    BeforeRemoveKeyLF,
+    GetRemoveKey(usize),
 }
 
 impl Persistable for FileStore {
@@ -112,17 +90,136 @@ impl Persistable for FileStore {
 
     fn load(&mut self) -> Result<BTreeMap<String, Data>> {
         let mut btree: BTreeMap<String, Data> = BTreeMap::new();
+        let mut buf_reader = BufReader::new(fs::File::open(&self.path)?);
 
-        for line in BufReader::new(fs::File::open(&self.path)?).lines() {
-            let line = line? + CRLF;
-            if line.starts_with(SET_PREFIX) {
-                let (key, value) = Self::extract_set(String::from(line))?;
-                btree.insert(key, value);
-            } else if line.starts_with(REMOVE_PREFIX) {
-                btree.remove(&Self::extract_remove(String::from(line))?);
-            } else {
-                return Err(Error::new(ErrorKind::InvalidSerializedString));
+        let mut buffer = Vec::new();
+        let mut cache = String::from("");
+
+        buf_reader.read_to_end(&mut buffer)?;
+
+        let content = String::from_utf8(buffer)?;
+
+        if content.is_empty() {
+            return Ok(btree);
+        }
+
+        let mut buffer = String::from("");
+        let mut state = LoadState::Empty;
+
+        for ch in content.chars() {
+            let char_string = ch.to_string();
+            match state {
+                LoadState::Empty => {
+                    if char_string == SET_PREFIX {
+                        state = LoadState::BeforeSetKeyCR;
+                        continue;
+                    }
+                    if char_string == REMOVE_PREFIX {
+                        state = LoadState::BeforeRemoveKeyCR;
+                        continue;
+                    }
+                    return Err(Error::new(ErrorKind::InvalidSerializedString));
+                }
+                LoadState::BeforeSetKeyCR => {
+                    if char_string == CR {
+                        state = LoadState::BeforeSetKeyLF;
+                        continue;
+                    }
+                    buffer.push(ch);
+                }
+                LoadState::BeforeSetKeyLF => {
+                    if char_string != LF {
+                        return Err(Error::new(ErrorKind::InvalidSerializedString));
+                    }
+
+                    let key_len = String::from(&buffer[0..buffer.len()]).parse()?;
+                    state = LoadState::GetSetKey(key_len);
+                    buffer.clear();
+                    continue;
+
+                }
+                LoadState::GetSetKey(len) => {
+                    if buffer.len() < len - 1 {
+                        buffer.push(ch);
+                        continue;
+                    }
+                    if buffer.len() > len - 1 {
+                        unreachable!();
+                    }
+
+                    buffer.push(ch);
+                    cache = buffer.clone();
+                    buffer.clear();
+                    state = LoadState::BeforeSetValCR;
+                }
+                LoadState::BeforeSetValCR => {
+                    if char_string == CR {
+                        state = LoadState::BeforeSetValLF;
+                        continue;
+                    }
+                    buffer.push(ch);
+                }
+                LoadState::BeforeSetValLF => {
+                    if char_string != LF {
+                        return Err(Error::new(ErrorKind::InvalidSerializedString));
+                    }
+
+                    let val_len = String::from(&buffer[0..buffer.len()]).parse()?;
+                    state = LoadState::GetSetVal(val_len);
+                    buffer.clear();
+                    continue;
+                }
+                LoadState::GetSetVal(len) => {
+                    if buffer.len() < len - 1 {
+                        buffer.push(ch);
+                        continue;
+                    }
+                    if buffer.len() > len - 1 {
+                        unreachable!();
+                    }
+
+                    buffer.push(ch);
+                    btree.insert(cache.clone(), Data::try_from(buffer.clone())?);
+                    cache.clear();
+                    buffer.clear();
+                    state = LoadState::Empty;
+                }
+                LoadState::BeforeRemoveKeyCR => {
+                    if char_string == CR {
+                        state = LoadState::BeforeRemoveKeyLF;
+                        continue;
+                    }
+                    buffer.push(ch);
+                }
+                LoadState::BeforeRemoveKeyLF => {
+                    if char_string != LF {
+                        return Err(Error::new(ErrorKind::InvalidSerializedString));
+                    }
+
+                    let key_len = String::from(&buffer[0..buffer.len()]).parse()?;
+                    state = LoadState::GetRemoveKey(key_len);
+                    buffer.clear();
+                    continue;
+                }
+                LoadState::GetRemoveKey(len) => {
+                    if buffer.len() < len - 1 {
+                        buffer.push(ch);
+                        continue;
+                    }
+                    if buffer.len() > len - 1 {
+                        unreachable!();
+                    }
+
+                    buffer.push(ch);
+                    btree.remove(&buffer);
+                    buffer.clear();
+                    state = LoadState::Empty;
+                }
             }
+        }
+
+        if state != LoadState::Empty {
+            return Err(Error::new(ErrorKind::InvalidSerializedString));
         }
 
         Ok(btree)
@@ -195,29 +292,6 @@ mod file_store_tests {
     }
 
     #[test]
-    fn test_extract_set_string() {
-        let line = String::from("$key +value\r\n");
-        let (key, value) = FileStore::extract_set(line).unwrap();
-        assert_eq!("key", key);
-        assert_eq!(Data::String(String::from("value")), value);
-    }
-
-    #[test]
-    fn test_extract_set_int() {
-        let line = String::from("$key :888\r\n");
-        let (key, value) = FileStore::extract_set(line).unwrap();
-        assert_eq!("key", key);
-        assert_eq!(Data::Int(888), value);
-    }
-
-    #[test]
-    fn test_extract_remove() {
-        let line = String::from("#key\r\n");
-        let key = FileStore::extract_remove(line).unwrap();
-        assert_eq!("key", key);
-    }
-
-    #[test]
     fn test_new() {
         let mut store = FileStore::new(get_cdb_path("test_new.cdb")).unwrap();
         store.clear().unwrap();
@@ -241,7 +315,7 @@ mod file_store_tests {
             .unwrap()
             .read_to_string(&mut content)
             .unwrap();
-        assert_eq!("$key +value\r\n$key +value\r\n", content);
+        assert_eq!("$3\r\nkey8\r\n+value\r\n$3\r\nkey8\r\n+value\r\n", content);
         store.clear().unwrap();
     }
 
@@ -282,14 +356,14 @@ mod file_store_tests {
             .unwrap()
             .read_to_string(&mut content)
             .unwrap();
-        assert_eq!("#key1\r\n#key2\r\n", content);
+        assert_eq!("#4\r\nkey1#4\r\nkey2", content);
         store.clear().unwrap();
     }
 
     #[test]
     fn test_load() {
         let mut store = FileStore::new(get_cdb_path("test_load.cdb")).unwrap();
-        write!(store.file, "$key +value\r\n").unwrap();
+        write!(store.file, "$3\r\nkey8\r\n+value\r\n").unwrap();
 
         let tree = store.load().unwrap();
         assert_eq!(1, tree.len());
