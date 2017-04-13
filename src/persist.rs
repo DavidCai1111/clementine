@@ -32,6 +32,20 @@ pub trait Persistable {
     fn clear(&mut self) -> Result<()>;
 }
 
+#[derive(Debug, PartialEq)]
+enum LoadState {
+    Empty,
+    BeforeSetKeyCR,
+    BeforeSetKeyLF,
+    GetSetKey(usize),
+    BeforeSetValCR,
+    BeforeSetValLF,
+    GetSetVal(usize),
+    BeforeRemoveKeyCR,
+    BeforeRemoveKeyLF,
+    GetRemoveKey(usize),
+}
+
 #[derive(Debug)]
 pub struct FileStore {
     path: String,
@@ -50,20 +64,6 @@ impl FileStore {
                    .open(path)?,
            })
     }
-}
-
-#[derive(Debug, PartialEq)]
-enum LoadState {
-    Empty,
-    BeforeSetKeyCR,
-    BeforeSetKeyLF,
-    GetSetKey(usize),
-    BeforeSetValCR,
-    BeforeSetValLF,
-    GetSetVal(usize),
-    BeforeRemoveKeyCR,
-    BeforeRemoveKeyLF,
-    GetRemoveKey(usize),
 }
 
 impl Persistable for FileStore {
@@ -90,20 +90,20 @@ impl Persistable for FileStore {
 
     fn load(&mut self) -> Result<BTreeMap<String, Data>> {
         let mut btree: BTreeMap<String, Data> = BTreeMap::new();
+
         let mut buf_reader = BufReader::new(fs::File::open(&self.path)?);
+        let mut content_buffer = Vec::new();
 
-        let mut buffer = Vec::new();
-        let mut cache = String::from("");
+        buf_reader.read_to_end(&mut content_buffer)?;
 
-        buf_reader.read_to_end(&mut buffer)?;
-
-        let content = String::from_utf8(buffer)?;
+        let content = String::from_utf8(content_buffer)?;
 
         if content.is_empty() {
             return Ok(btree);
         }
 
-        let mut buffer = String::from("");
+        let mut buffer = String::new();
+        let mut cache = String::new();
         let mut state = LoadState::Empty;
 
         for ch in content.chars() {
@@ -136,7 +136,6 @@ impl Persistable for FileStore {
                     state = LoadState::GetSetKey(key_len);
                     buffer.clear();
                     continue;
-
                 }
                 LoadState::GetSetKey(len) => {
                     if buffer.len() < len - 1 {
