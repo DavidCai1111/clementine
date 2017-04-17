@@ -96,3 +96,10 @@ impl From<string::FromUtf8Error> for Error {
         Error { kind: ErrorKind::InvalidSerializedString }
     }
 }
+
+
+impl From<io::CharsError> for Error {
+    fn from(_: io::CharsError) -> Error {
+        Error { kind: ErrorKind::IOError }
+    }
+}

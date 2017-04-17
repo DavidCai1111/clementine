@@ -1,6 +1,6 @@
 use std::collections::*;
 use std::fs;
-use std::io::{Write, BufReader, Read};
+use std::io::{Write, Read};
 use data::*;
 use error::*;
 
@@ -91,22 +91,12 @@ impl Persistable for FileStore {
     fn load(&mut self) -> Result<BTreeMap<String, Data>> {
         let mut btree: BTreeMap<String, Data> = BTreeMap::new();
 
-        let mut buf_reader = BufReader::new(fs::File::open(&self.path)?);
-        let mut content_buffer = Vec::new();
-
-        buf_reader.read_to_end(&mut content_buffer)?;
-
-        let content = String::from_utf8(content_buffer)?;
-
-        if content.is_empty() {
-            return Ok(btree);
-        }
-
         let mut buffer = String::new();
         let mut cache = String::new();
         let mut state = LoadState::Empty;
 
-        for ch in content.chars() {
+        for ch in fs::File::open(&self.path)?.chars() {
+            let ch = ch?;
             let char_string = ch.to_string();
             match state {
                 LoadState::Empty => {
