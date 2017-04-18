@@ -1,7 +1,8 @@
 use std::collections::*;
-use data::*;
 use std::ops::Deref;
+use std::cell::RefCell;
 use persist::Persistable;
+use data::*;
 use error::*;
 
 #[derive(Debug)]
@@ -35,8 +36,9 @@ pub trait WriteTransaction<K>: ReadTransaction<K>
 
 pub struct Transaction {
     store: BTreeMap<String, Data>,
-    persist_store: Box<Persistable>,
+    persist_store: RefCell<Box<Persistable>>,
     backup_store: Option<BTreeMap<String, Data>>,
+    items_to_sync: Vec<Item>,
     rollback_items: Vec<Item>,
 }
 
@@ -45,16 +47,22 @@ impl Transaction {
         Transaction {
             store: store,
             backup_store: None,
-            persist_store: persist,
+            persist_store: RefCell::new(persist),
+            items_to_sync: Vec::new(),
             rollback_items: Vec::new(),
         }
     }
 
-    pub fn save(&mut self) -> Result<()> {
-        self.persist_store.clear()?;
-
-        for (key, value) in &self.store {
-            self.persist_store.set(key.clone(), value.clone())?;
+    pub fn save(&self) -> Result<()> {
+        for item in &self.items_to_sync {
+            match item.value {
+                Some(ref value) => {
+                    self.persist_store
+                        .borrow_mut()
+                        .set(item.key.clone(), value.clone())?
+                }
+                None => self.persist_store.borrow_mut().remove(item.key.clone())?,
+            }
         }
 
         Ok(())
@@ -78,6 +86,16 @@ impl Transaction {
                     .insert(item.key.clone(), item.value.clone().unwrap());
             }
         }
+    }
+
+    fn record_rollback_item(&mut self, key: String, value: Option<Data>) {
+        if self.backup_store.is_none() {
+            self.rollback_items.push(Item::new(key, value));
+        }
+    }
+
+    fn record_item_to_sync(&mut self, key: String, value: Option<Data>) {
+        self.items_to_sync.push(Item::new(key, value));
     }
 
     fn is_cleared(&self) -> bool {
@@ -116,20 +134,18 @@ impl<K> WriteTransaction<K> for Transaction
     where K: Into<String> + Ord + Clone
 {
     fn update(&mut self, key: K, value: Data) -> Option<Data> {
-        let previous_value = self.store.insert(key.clone().into(), value);
-        if self.backup_store.is_none() {
-            self.rollback_items
-                .push(Item::new(key.into(), previous_value.clone()));
-        }
+        let previous_value = self.store.insert(key.clone().into(), value.clone());
+        self.record_rollback_item(key.clone().into(), previous_value.clone());
+        self.record_item_to_sync(key.into(), Some(value));
+
         previous_value
     }
 
     fn remove(&mut self, key: K) -> Option<Data> {
         let previous_value = self.store.remove(&key.clone().into());
-        if self.backup_store.is_none() {
-            self.rollback_items
-                .push(Item::new(key.into(), previous_value.clone()));
-        }
+        self.record_rollback_item(key.clone().into(), previous_value.clone());
+        self.record_item_to_sync(key.into(), None);
+
         previous_value
     }
 

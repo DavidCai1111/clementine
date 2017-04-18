@@ -65,10 +65,8 @@ impl Database {
         // sync job if specified.
         if f(&mut *store).is_err() {
             store.rollback();
-        } else {
-            if self.sync_policy == SyncPolicy::Always {
-                store.save()?;
-            }
+        } else if self.sync_policy == SyncPolicy::Always {
+            store.save()?;
         }
 
         store.commit();
