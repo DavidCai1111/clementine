@@ -13,12 +13,15 @@ const REMOVE_PREFIX: &'static str = "#";
 macro_rules! serialize_set_template { () => ("{prefix}{key_len}{crlf}{key}{val_len}{crlf}{value}") }
 macro_rules! serialize_remove_template { () => ("{prefix}{key_len}{crlf}{key}") }
 
+// The sync policy of the database. Never or every update
+// transaction.
 #[derive(Debug, PartialEq)]
 pub enum SyncPolicy {
     Never,
     Always,
 }
 
+// Whether this database should persist its data to the disk.
 #[derive(Debug)]
 pub enum PersistType {
     Memory,

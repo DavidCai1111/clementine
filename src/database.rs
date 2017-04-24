@@ -4,6 +4,7 @@ use transaction::*;
 use error::*;
 use persist::*;
 
+// The Clementine database.
 pub struct Database {
     pub flushes: i32,
 
@@ -12,11 +13,16 @@ pub struct Database {
     closed: bool,
 }
 
+// The configuration of the Database.
 pub struct Config {
+    // Whether the database should persist its data on
+    // dist or just in memory.
     persist_type: PersistType,
+    // The sync prolicy.
     sync_policy: SyncPolicy,
 }
 
+// The default configuration of the Database.
 impl Default for Config {
     fn default() -> Self {
         Config {
@@ -27,6 +33,7 @@ impl Default for Config {
 }
 
 impl Database {
+    // Return a new instance of the Database.
     pub fn new(config: Config) -> Result<Database> {
         let mut persist_store: Box<Persistable> = match config.persist_type {
             PersistType::Memory => Box::new(MemoryStore::default()),
@@ -41,6 +48,7 @@ impl Database {
            })
     }
 
+    // Start a read transaction.
     pub fn read<F, K>(&self, f: F) -> Result<()>
         where F: Fn(&ReadTransaction<K>) -> Result<()>,
               K: Into<String> + Ord + Clone
@@ -52,6 +60,9 @@ impl Database {
         f(&*store)
     }
 
+    // Start an update transaction. If all operations in the
+    // transaction are successful, then the result will be persisted
+    // recording to the sync policy, otherwise will just rollback.
     pub fn update<F, K>(&self, f: F) -> Result<()>
         where F: Fn(&mut WriteTransaction<K>) -> Result<()>,
               K: Into<String> + Ord + Clone
@@ -73,12 +84,7 @@ impl Database {
         Ok(())
     }
 
-    pub fn save(&mut self) -> Result<()> {
-        self.txn_mut.write()?.save()?;
-        self.flushes += 1;
-        Ok(())
-    }
-
+    // Close this database.
     pub fn close(&mut self) -> Result<()> {
         if self.closed {
             return Err(Error::new(ErrorKind::DataBaseClosed));

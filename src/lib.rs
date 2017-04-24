@@ -1,3 +1,5 @@
+//! A tiny, embeddable, ACID compliant in-memory key/value database.
+
 #![feature(io)]
 #[macro_use]
 extern crate serde_json;

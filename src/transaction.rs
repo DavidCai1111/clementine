@@ -17,6 +17,7 @@ impl Item {
     }
 }
 
+// A read-only transaction on the dasebase.
 pub trait ReadTransaction<K>
     where K: Into<String> + Ord + Clone
 {
@@ -26,6 +27,7 @@ pub trait ReadTransaction<K>
     fn contains_key(&self, key: K) -> bool;
 }
 
+// An update transaction on the dasebase.
 pub trait WriteTransaction<K>: ReadTransaction<K>
     where K: Into<String> + Ord + Clone
 {

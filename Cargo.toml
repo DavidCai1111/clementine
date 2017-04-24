@@ -1,9 +1,14 @@
 [package]
 name = "clementine"
+description = "A tiny, embeddable, ACID compliant in-memory key/value database."
+documentation = "https://github.com/DavidCai1993/clementine"
+homepage = "https://github.com/DavidCai1993/clementine"
 version = "0.0.1"
 authors = ["DavidCai <davidcai1993@yahoo.com>"]
 readme = "README.md"
 repository = "https://github.com/DavidCai1993/clementine"
+keywords = ["tiny", "ACID", "in-memory"]
+categories = ["database"]
 license = "MIT"
 
 [dependencies]

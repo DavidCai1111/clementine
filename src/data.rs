@@ -8,6 +8,7 @@ const JSON_PERFIX: &'static str = "?";
 
 macro_rules! serialize_template { () => ("{prefix}{value}{crlf}") }
 
+// This type represents one data in the database.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     String(String),
