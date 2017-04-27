@@ -13,21 +13,21 @@ clementine = "0.0.1"
 ## Usage
 
 ```rust
-let db = Database::new(Config::default()).unwrap();
+let db = Database::new(Config::default())?;
 
 db.read(|txn| -> Result<()> {
     assert!(txn.get("hello").is_none());
     Ok(())
-}).unwrap();
+})?;
 ```
 
 ```rust
-let db = Database::new(Config::default()).unwrap();
+let db = Database::new(Config::default())?;
 
 db.update(|txn| -> Result<()> {
     assert!(txn.get("hello").is_none());
-    txn.update("hello", Data::Int(998)).unwrap();
+    txn.update("hello", Data::Int(998))?;
     assert_eq!(&Data::Int(998), txn.get("hello").unwrap());
     Ok(())
-}).unwrap();
+})?;
 ```
