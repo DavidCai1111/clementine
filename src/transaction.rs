@@ -63,7 +63,11 @@ impl Transaction {
                         .borrow_mut()
                         .set(item.key.clone(), value.clone())?
                 }
-                None => self.persist_store.borrow_mut().remove(item.key.clone())?,
+                None => {
+                    self.persist_store
+                        .borrow_mut()
+                        .remove(item.key.clone())?
+                }
             }
         }
 

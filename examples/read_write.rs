@@ -7,9 +7,8 @@ fn main() {
 
     db.update(|txn| -> Result<()> {
                     assert!(txn.get("hello").is_none());
-                    txn.update("hello", Data::String(String::from("world")));
-                    assert_eq!(&Data::String(String::from("world")),
-                               txn.get("hello").unwrap());
+                    txn.update("hello", Data::Int(998)).unwrap();
+                    assert_eq!(&Data::Int(998), txn.get("hello").unwrap());
                     Ok(())
                 })
         .unwrap();
